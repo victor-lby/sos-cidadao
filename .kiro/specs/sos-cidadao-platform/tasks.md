@@ -64,7 +64,7 @@
   - Delete feature branch: `git branch -d feat/data-models`
   - _Requirements: 24.1_
 
-- [-] 3. Implement authentication and authorization system
+- [x] 3. Implement authentication and authorization system
 - [x] 3.1 Create feature branch for authentication
   - Create feature branch: `git checkout -b feat/authentication`
   - Pull latest changes from main: `git pull origin main`
@@ -94,7 +94,7 @@
   - Commit changes: `git commit -m "feat: implement authorization domain logic"`
   - _Requirements: 2.4, 2.5, 16.3, 21.1_
 
-- [ ] 3.5 Write unit tests for authentication and authorization
+- [x] 3.5 Write unit tests for authentication and authorization
   - Test JWT token lifecycle (generate, validate, refresh, revoke)
   - Test permission aggregation and checking logic
   - Test Redis token blocklist functionality
@@ -102,19 +102,19 @@
   - Commit changes: `git commit -m "test: add unit tests for authentication system"`
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [-] 3.6 Merge authentication implementation
+- [x] 3.6 Merge authentication implementation
   - Create pull request for authentication feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/authentication`
   - _Requirements: 24.1_
 
-- [ ] 4. Implement HAL response formatting and API utilities
-- [ ] 4.1 Create feature branch for HAL implementation
+- [x] 4. Implement HAL response formatting and API utilities
+- [x] 4.1 Create feature branch for HAL implementation
   - Create feature branch: `git checkout -b feat/hal-responses`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 4.2 Implement HAL response formatting utilities
+- [x] 4.2 Implement HAL response formatting utilities
   - Create HAL response builder with _links and _embedded support
   - Add pagination link generation for collections
   - Implement conditional affordance links based on permissions
@@ -122,7 +122,7 @@
   - Commit changes: `git commit -m "feat: implement HAL response formatting utilities"`
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 4.3 Create API utilities and middleware
+- [x] 4.3 Create API utilities and middleware
   - Add request validation middleware using Pydantic models
   - Create organization context extraction utilities
   - Add error handling middleware with structured responses
@@ -130,7 +130,7 @@
   - Commit changes: `git commit -m "feat: add API utilities and middleware"`
   - _Requirements: 8.1, 8.4, 18.1_
 
-- [ ] 4.4 Write tests for HAL and API utilities
+- [x] 4.4 Write tests for HAL and API utilities
   - Test HAL response formatting with various scenarios
   - Test pagination link generation
   - Test error response formatting
@@ -138,20 +138,20 @@
   - Commit changes: `git commit -m "test: add tests for HAL and API utilities"`
   - _Requirements: 7.1, 8.1_
 
-- [ ] 4.5 Merge HAL implementation
+- [x] 4.5 Merge HAL implementation
   - Create pull request for HAL responses feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/hal-responses`
   - _Requirements: 24.1_
 
-- [ ] 5.
+- [-] 5.
 Implement notification workflow endpoints
-- [ ] 5.1 Create feature branch for notification workflow
+- [x] 5.1 Create feature branch for notification workflow
   - Create feature branch: `git checkout -b feat/notification-workflow`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 5.2 Create notification domain logic
+- [x] 5.2 Create notification domain logic
   - Implement pure functions for notification workflow (receive, approve, deny)
   - Add notification validation and status transition logic
   - Create notification filtering and search functions
@@ -159,7 +159,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement notification domain logic"`
   - _Requirements: 3.1, 3.2, 21.1_
 
-- [ ] 5.3 Create notification intake webhook endpoint
+- [x] 5.3 Create notification intake webhook endpoint
   - Implement POST /api/notifications/incoming with JWT protection
   - Add request validation using Pydantic models and organization scoping
   - Store notifications with status='received' and preserve originalPayload
@@ -167,7 +167,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement notification intake webhook endpoint"`
   - _Requirements: 3.1, 3.2, 3.3, 10.3_
 
-- [ ] 5.4 Implement notification listing and detail endpoints
+- [x] 5.4 Implement notification listing and detail endpoints
   - Create GET /api/notifications with filtering, pagination, and HAL collection format
   - Add GET /api/notifications/{id} with HAL affordance links
   - Include conditional approve/deny links based on status and permissions
@@ -175,7 +175,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: add notification listing and detail endpoints"`
   - _Requirements: 4.1, 4.2, 4.3, 7.3_
 
-- [ ] 5.5 Create notification approval endpoint
+- [x] 5.5 Create notification approval endpoint
   - Implement POST /api/notifications/{id}/approve with target/category validation
   - Add business logic for status transitions and permission checks
   - Integrate with AMQP publishing for dispatch (placeholder for now)
@@ -183,14 +183,14 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement notification approval endpoint"`
   - _Requirements: 5.1, 5.2, 5.3, 9.1_
 
-- [ ] 5.6 Create notification denial endpoint
+- [x] 5.6 Create notification denial endpoint
   - Implement POST /api/notifications/{id}/deny with reason storage
   - Add status transition validation and audit logging
   - Include denial reason in HAL response and audit trail
   - Commit changes: `git commit -m "feat: add notification denial endpoint"`
   - _Requirements: 6.1, 6.2, 6.3, 9.1_
 
-- [ ] 5.7 Write integration tests for notification endpoints
+- [x] 5.7 Write integration tests for notification endpoints
   - Test complete notification workflow (receive → approve → dispatch)
   - Test notification denial with reason storage
   - Test HAL affordance links and pagination
@@ -198,7 +198,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "test: add integration tests for notification workflow"`
   - _Requirements: 3.1, 4.1, 5.1, 6.1_
 
-- [ ] 5.8 Merge notification workflow implementation
+- [-] 5.8 Merge notification workflow implementation
   - Create pull request for notification workflow feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/notification-workflow`
