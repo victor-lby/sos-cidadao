@@ -8,7 +8,7 @@
   - Create initial commit with project structure
   - _Requirements: 24.1, 24.5_
 
-- [-] 1.2 Create project directory structure
+- [x] 1.2 Create project directory structure
   - Create feature branch: `git checkout -b feat/project-structure`
   - Create directory structure for API (domain, services, models, routes) and frontend
   - Set up Vercel configuration with Python runtime and routing
@@ -17,7 +17,7 @@
   - Commit changes: `git commit -m "feat: set up project structure and infrastructure"`
   - _Requirements: 18.1, 19.1, 19.2_
 
-- [ ] 1.3 Merge infrastructure setup
+- [-] 1.3 Merge infrastructure setup
   - Create pull request for project structure
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/project-structure`
