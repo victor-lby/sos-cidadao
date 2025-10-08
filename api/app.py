@@ -7,6 +7,8 @@ multi-tenant civic notification platform.
 """
 
 import os
+import time
+from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_openapi3 import OpenAPI, Info, Tag
 from observability.config import setup_observability
@@ -92,6 +94,10 @@ amqp_service = create_amqp_service()
 from services.audit import AuditService
 audit_service = AuditService(mongodb_service)
 
+# Initialize health service
+from services.health import HealthCheckService
+health_service = HealthCheckService(mongodb_service, redis_service, amqp_service)
+
 # Initialize middleware
 hal_formatter = create_hal_formatter(app.config['BASE_URL'])
 validation_middleware = ValidationMiddleware(app.config['BASE_URL'])
@@ -131,32 +137,169 @@ app.register_blueprint(audit_bp)
 
 @app.route('/api/healthz')
 def health_check():
-    """Enhanced health check endpoint with HAL formatting"""
-    from datetime import datetime
-    
-    health_data = {
-        "status": "healthy",
-        "service": "sos-cidadao-api",
-        "version": "1.0.0",
-        "environment": app.config['ENVIRONMENT'],
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "dependencies": {
-            "mongodb": {"status": "healthy"},  # Will be enhanced in later tasks
-            "redis": {"status": "healthy"},
-            "amqp": {"status": "healthy" if amqp_service.health_check() else "unhealthy"}
+    """Enhanced health check endpoint with comprehensive dependency monitoring"""
+    try:
+        # Get comprehensive health status
+        health_data = health_service.get_comprehensive_health()
+        
+        # Determine HTTP status code based on overall health
+        status_code = 200
+        if health_data["status"] == "degraded":
+            status_code = 200  # Still operational but with issues
+        elif health_data["status"] == "unhealthy":
+            status_code = 503  # Service unavailable
+        
+        # Add HAL links
+        health_response = hal_formatter.builder.build_resource_response(
+            health_data,
+            "health",
+            "system",
+            "system",
+            []  # No user permissions needed for health check
+        )
+        
+        return jsonify(health_response), status_code
+        
+    except Exception as e:
+        # Fallback health response if health service fails
+        error_health = {
+            "status": "unhealthy",
+            "service": "sos-cidadao-api",
+            "version": "1.0.0",
+            "environment": app.config['ENVIRONMENT'],
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": f"Health check service failed: {str(e)}"
         }
+        
+        health_response = hal_formatter.builder.build_resource_response(
+            error_health,
+            "health",
+            "system",
+            "system",
+            []
+        )
+        
+        return jsonify(health_response), 503
+
+
+@app.route('/api/status')
+def system_status():
+    """Detailed system status and metrics endpoint"""
+    try:
+        # Get comprehensive system information
+        status_data = {
+            "service": "sos-cidadao-api",
+            "version": "1.0.0",
+            "environment": app.config['ENVIRONMENT'],
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "uptime": _get_application_uptime(),
+            "configuration": _get_configuration_summary(),
+            "feature_flags": _get_feature_flags_status(),
+            "openapi_status": _get_openapi_validation_status(),
+            "system_metrics": health_service._get_system_metrics(),
+            "dependencies": {
+                "mongodb": health_service._check_mongodb_health(),
+                "redis": health_service._check_redis_health(),
+                "amqp": health_service._check_amqp_health()
+            }
+        }
+        
+        # Add HAL links
+        status_response = hal_formatter.builder.build_resource_response(
+            status_data,
+            "status",
+            "system",
+            "system",
+            []  # No user permissions needed for status
+        )
+        
+        return jsonify(status_response)
+        
+    except Exception as e:
+        error_status = {
+            "service": "sos-cidadao-api",
+            "version": "1.0.0",
+            "environment": app.config['ENVIRONMENT'],
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "error": f"Status endpoint failed: {str(e)}"
+        }
+        
+        status_response = hal_formatter.builder.build_resource_response(
+            error_status,
+            "status",
+            "system",
+            "system",
+            []
+        )
+        
+        return jsonify(status_response), 500
+
+
+def _get_application_uptime():
+    """Get application uptime information."""
+    try:
+        import psutil
+        process = psutil.Process(os.getpid())
+        create_time = process.create_time()
+        uptime_seconds = time.time() - create_time
+        
+        return {
+            "uptime_seconds": round(uptime_seconds, 2),
+            "started_at": datetime.fromtimestamp(create_time).isoformat() + "Z",
+            "process_id": os.getpid()
+        }
+    except Exception as e:
+        return {
+            "error": f"Failed to get uptime: {str(e)}"
+        }
+
+
+def _get_configuration_summary():
+    """Get configuration validation summary."""
+    return {
+        "mongodb_configured": bool(app.config.get('MONGODB_URI')),
+        "redis_configured": bool(app.config.get('REDIS_URL')),
+        "amqp_configured": bool(app.config.get('AMQP_URL')),
+        "jwt_configured": bool(app.config.get('JWT_SECRET_KEY')),
+        "base_url": app.config.get('BASE_URL', 'not_set'),
+        "debug_mode": app.config.get('DEBUG', False),
+        "docs_enabled": app.config.get('DOCS_ENABLED', False)
     }
-    
-    # Add HAL links
-    health_response = hal_formatter.builder.build_resource_response(
-        health_data,
-        "health",
-        "system",
-        "system",
-        []  # No user permissions needed for health check
-    )
-    
-    return jsonify(health_response)
+
+
+def _get_feature_flags_status():
+    """Get current feature flags status."""
+    return {
+        "docs_enabled": app.config.get('DOCS_ENABLED', False),
+        "otel_enabled": app.config.get('OTEL_ENABLED', True),
+        "hal_strict": app.config.get('HAL_STRICT', False),
+        "debug_mode": app.config.get('DEBUG', False)
+    }
+
+
+def _get_openapi_validation_status():
+    """Get OpenAPI specification validation status."""
+    try:
+        # Check if OpenAPI spec is accessible
+        from flask import url_for
+        
+        # Try to access the OpenAPI spec
+        spec_available = hasattr(app, 'api_doc')
+        
+        return {
+            "spec_available": spec_available,
+            "spec_endpoint": "/openapi/openapi.json" if spec_available else None,
+            "docs_endpoint": "/openapi/swagger" if app.config.get('DOCS_ENABLED') else None,
+            "redoc_endpoint": "/openapi/redoc" if app.config.get('DOCS_ENABLED') else None,
+            "validation_status": "valid" if spec_available else "unavailable"
+        }
+    except Exception as e:
+        return {
+            "spec_available": False,
+            "error": f"OpenAPI validation failed: {str(e)}",
+            "validation_status": "error"
+        }
+
 
 if __name__ == '__main__':
     # Development server

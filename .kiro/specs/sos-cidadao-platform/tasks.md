@@ -306,7 +306,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement authentication endpoints"`
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [-] 8.3 Create organization management endpoints
+- [x] 8.3 Create organization management endpoints
   - Implement CRUD operations for organizations with HAL responses
   - Add organization slug validation and uniqueness checking
   - Include soft delete functionality and audit logging
@@ -314,7 +314,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement organization management endpoints"`
   - _Requirements: 1.1, 1.3, 9.1_
 
-- [ ] 8.4 Create user and role management endpoints
+- [x] 8.4 Create user and role management endpoints
   - Implement user CRUD with role assignment and HAL affordances
   - Add role and permission management endpoints
   - Include password change and user activation functionality
@@ -344,13 +344,13 @@ Implement notification workflow endpoints
   - Delete feature branch: `git branch -d feat/entity-management`
   - _Requirements: 24.1_
 
-- [ ] 9. Enhance health check and system status endpoints
-- [ ] 9.1 Create feature branch for enhanced health checks
+- [-] 9. Enhance health check and system status endpoints
+- [x] 9.1 Create feature branch for enhanced health checks
   - Create feature branch: `git checkout -b feat/enhanced-health-checks`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 9.2 Enhance health check endpoint with dependency monitoring
+- [x] 9.2 Enhance health check endpoint with dependency monitoring
   - Enhance existing GET /api/healthz with comprehensive dependency checks
   - Add MongoDB, Redis, and LavinMQ connectivity testing
   - Include system version, environment, and feature flag status
@@ -358,7 +358,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: enhance health check with dependency monitoring"`
   - _Requirements: 23.1, 23.2, 23.4, 25.2_
 
-- [ ] 9.3 Add system status and metrics endpoints
+- [-] 9.3 Add system status and metrics endpoints
   - Implement GET /api/status with detailed system information
   - Add basic system metrics collection (memory, CPU, connections)
   - Include configuration status and feature flag reporting

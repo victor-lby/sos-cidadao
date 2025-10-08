@@ -508,6 +508,46 @@ class RedisService:
     
     # Health Check Methods
     
+    def ping(self) -> bool:
+        """
+        Ping Redis server.
+        
+        Returns:
+            True if ping successful, False otherwise
+        """
+        if not self.is_available():
+            return False
+        
+        try:
+            result = self.client.ping()
+            return result == "PONG"
+        except Exception as e:
+            logger.error(f"Redis ping failed: {str(e)}")
+            return False
+    
+    def get_info(self) -> Dict[str, Any]:
+        """
+        Get Redis server information.
+        
+        Returns:
+            Dictionary with Redis server info
+        """
+        if not self.is_available():
+            return {}
+        
+        try:
+            # Upstash Redis may not support full INFO command
+            # Return basic info that we can gather
+            return {
+                "redis_version": "unknown",  # Upstash doesn't expose this
+                "used_memory": 0,  # Not available via HTTP API
+                "connected_clients": 1,  # HTTP client connection
+                "uptime_in_seconds": 0  # Not available
+            }
+        except Exception as e:
+            logger.error(f"Failed to get Redis info: {str(e)}")
+            return {}
+    
     def health_check(self) -> Dict[str, Any]:
         """
         Perform Redis health check.
