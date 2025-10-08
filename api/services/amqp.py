@@ -700,8 +700,8 @@ class AMQPService:
                 "created_at": notification.created_at,
                 "updated_at": notification.updated_at,
                 "organization_id": notification.organization_id,
-                "targets": notification.targets,
-                "categories": notification.categories,
+                "targets": notification.target_ids,
+                "categories": notification.category_ids,
                 "original_payload": notification.original_payload,
                 "denial_reason": notification.denial_reason,
                 "created_by": notification.created_by,
@@ -764,8 +764,8 @@ class AMQPService:
                 "status_text": self.payload_transformer.transform_functions['status_text'](notification.status),
                 "created_at": notification.created_at.isoformat(),
                 "organization_id": notification.organization_id,
-                "targets": notification.targets,
-                "categories": notification.categories
+                "targets": notification.target_ids,
+                "categories": notification.category_ids
             },
             "metadata": {
                 "source": "sos-cidadao",
