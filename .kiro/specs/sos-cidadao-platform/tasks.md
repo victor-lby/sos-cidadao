@@ -358,7 +358,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: enhance health check with dependency monitoring"`
   - _Requirements: 23.1, 23.2, 23.4, 25.2_
 
-- [-] 9.3 Add system status and metrics endpoints
+- [x] 9.3 Add system status and metrics endpoints
   - Implement GET /api/status with detailed system information
   - Add basic system metrics collection (memory, CPU, connections)
   - Include configuration status and feature flag reporting
@@ -366,7 +366,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: add system status and metrics endpoints"`
   - _Requirements: 23.4, 25.2, 25.3, 25.4, 8.1_
 
-- [ ] 9.4 Write integration tests for health and status endpoints
+- [-] 9.4 Write integration tests for health and status endpoints
   - Test health check with various dependency states (healthy/unhealthy)
   - Test system status reporting and metrics collection
   - Test feature flag configuration and OpenAPI validation
