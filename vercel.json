@@ -1,0 +1,46 @@
+{
+  "functions": {
+    "api/**/*.py": {
+      "runtime": "python3.11"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "env": {
+    "ENVIRONMENT": "production",
+    "MONGODB_URI": "@mongodb-uri",
+    "REDIS_URL": "@redis-url",
+    "REDIS_TOKEN": "@redis-token",
+    "JWT_SECRET": "@jwt-secret",
+    "JWT_PUBLIC_KEY": "@jwt-public-key",
+    "AMQP_URL": "@amqp-url",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "@otel-endpoint",
+    "DOCS_ENABLED": "false",
+    "OTEL_ENABLED": "true",
+    "HAL_STRICT": "true"
+  },
+  "build": {
+    "env": {
+      "ENVIRONMENT": "production"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/hal+json"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 100ms
+    send_batch_size: 512
+
+  resource:
+    attributes:
+      - key: service.name
+        value: sos-cidadao-api-test
+        action: upsert
+      - key: deployment.environment
+        value: test
+        action: upsert
+
+exporters:
+  # Console only for testing
+  logging:
+    loglevel: info
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [logging]
+    
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [logging]
+    
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [logging]

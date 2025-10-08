@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: sos-cidadao-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: sos_cidadao_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./infra/docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - sos-cidadao-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sos-cidadao-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - sos-cidadao-network
+
+  lavinmq:
+    image: lavinmq/lavinmq:latest
+    container_name: sos-cidadao-lavinmq
+    restart: unless-stopped
+    environment:
+      LAVINMQ_DEFAULT_USER: admin
+      LAVINMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    volumes:
+      - lavinmq_data:/var/lib/lavinmq
+    networks:
+      - sos-cidadao-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: sos-cidadao-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./infra/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter metrics
+    depends_on:
+      - jaeger
+    networks:
+      - sos-cidadao-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: sos-cidadao-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14250:14250" # Jaeger gRPC
+    networks:
+      - sos-cidadao-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  lavinmq_data:
+
+networks:
+  sos-cidadao-network:
+    driver: bridge

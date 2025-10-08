@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mongodb-test:
+    image: mongo:7
+    container_name: sos-cidadao-mongodb-test
+    environment:
+      MONGO_INITDB_DATABASE: sos_cidadao_test
+    ports:
+      - "27018:27017"
+    volumes:
+      - ./infra/docker/mongo-init-test.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - sos-cidadao-test-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: sos-cidadao-redis-test
+    ports:
+      - "6380:6379"
+    networks:
+      - sos-cidadao-test-network
+
+  lavinmq-test:
+    image: lavinmq/lavinmq:latest
+    container_name: sos-cidadao-lavinmq-test
+    environment:
+      LAVINMQ_DEFAULT_USER: test
+      LAVINMQ_DEFAULT_PASS: test123
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+    networks:
+      - sos-cidadao-test-network
+
+  otel-collector-test:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: sos-cidadao-otel-collector-test
+    command: ["--config=/etc/otel-collector-config-test.yaml"]
+    volumes:
+      - ./infra/collector/otel-collector-config-test.yaml:/etc/otel-collector-config-test.yaml:ro
+    ports:
+      - "4319:4317"
+      - "4320:4318"
+    networks:
+      - sos-cidadao-test-network
+
+networks:
+  sos-cidadao-test-network:
+    driver: bridge
