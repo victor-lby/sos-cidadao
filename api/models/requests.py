@@ -6,7 +6,7 @@ Request models for API endpoints.
 """
 
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from .base import BaseEntityCreate, BaseEntityUpdate
 from .enums import NotificationSeverity, UserStatus
 
@@ -19,7 +19,8 @@ class CreateOrganizationRequest(BaseEntityCreate):
     description: Optional[str] = Field(None, max_length=1000, description="Organization description")
     settings: Dict[str, Any] = Field(default_factory=dict, description="Organization settings")
     
-    @validator('slug')
+    @field_validator('slug')
+    @classmethod
     def validate_slug(cls, v):
         """Validate slug format."""
         import re
@@ -45,7 +46,8 @@ class CreateUserRequest(BaseEntityCreate):
     roles: List[str] = Field(default_factory=list, description="List of role IDs")
     status: UserStatus = Field(default=UserStatus.ACTIVE, description="User account status")
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         """Validate email format."""
         import re
@@ -54,7 +56,8 @@ class CreateUserRequest(BaseEntityCreate):
             raise ValueError('Invalid email format')
         return v.lower()
     
-    @validator('password')
+    @field_validator('password')
+    @classmethod
     def validate_password(cls, v):
         """Validate password strength."""
         if len(v) < 8:
@@ -83,7 +86,8 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=8, description="New password")
     updated_by: str = Field(..., description="User ID making the change")
     
-    @validator('new_password')
+    @field_validator('new_password')
+    @classmethod
     def validate_new_password(cls, v):
         """Validate new password strength."""
         if len(v) < 8:
@@ -128,8 +132,8 @@ class CreateNotificationRequest(BaseEntityCreate):
 class ApproveNotificationRequest(BaseModel):
     """Request model for approving a notification."""
     
-    target_ids: List[str] = Field(..., min_items=1, description="Selected target IDs")
-    category_ids: List[str] = Field(..., min_items=1, description="Selected category IDs")
+    target_ids: List[str] = Field(..., min_length=1, description="Selected target IDs")
+    category_ids: List[str] = Field(..., min_length=1, description="Selected category IDs")
     approved_by: str = Field(..., description="User ID approving the notification")
 
 
@@ -211,7 +215,8 @@ class LoginRequest(BaseModel):
     email: str = Field(..., description="User email address")
     password: str = Field(..., description="User password")
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         """Validate email format."""
         import re
@@ -254,4 +259,4 @@ class PaginationParams(BaseModel):
     page: int = Field(default=1, ge=1, description="Page number")
     page_size: int = Field(default=20, ge=1, le=100, description="Items per page")
     sort_by: Optional[str] = Field(None, description="Sort field")
-    sort_order: Optional[str] = Field(default="desc", regex="^(asc|desc)$", description="Sort order")
+    sort_order: Optional[str] = Field(default="desc", pattern="^(asc|desc)$", description="Sort order")

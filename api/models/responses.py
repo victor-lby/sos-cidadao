@@ -6,7 +6,7 @@ Response models for API endpoints with HAL support.
 """
 
 from typing import List, Optional, Dict, Any, Generic, TypeVar
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 
 T = TypeVar('T')
@@ -25,17 +25,17 @@ class HalLink(BaseModel):
 class HalResponse(BaseModel, Generic[T]):
     """Base HAL response with links."""
     
-    _links: Dict[str, HalLink] = Field(default_factory=dict, description="HAL links")
+    model_config = ConfigDict(
+        populate_by_name=True
+    )
     
-    class Config:
-        """Pydantic configuration."""
-        allow_population_by_field_name = True
+    links: Dict[str, HalLink] = Field(default_factory=dict, alias="_links", description="HAL links")
 
 
 class HalCollection(HalResponse[T]):
     """HAL collection response with embedded items."""
     
-    _embedded: Dict[str, List[T]] = Field(default_factory=dict, description="Embedded resources")
+    embedded: Dict[str, List[T]] = Field(default_factory=dict, alias="_embedded", description="Embedded resources")
     total: int = Field(..., description="Total number of items")
     page: int = Field(..., description="Current page number")
     page_size: int = Field(..., description="Items per page")
@@ -206,7 +206,7 @@ class ErrorResponse(BaseModel):
     detail: str = Field(..., description="Error detail")
     instance: str = Field(..., description="Request instance")
     errors: Optional[List[Dict[str, Any]]] = Field(None, description="Validation errors")
-    _links: Optional[Dict[str, HalLink]] = Field(None, description="HAL links")
+    links: Optional[Dict[str, HalLink]] = Field(None, alias="_links", description="HAL links")
 
 
 class ValidationErrorResponse(ErrorResponse):

@@ -7,7 +7,7 @@ Core entity models for the S.O.S Cidadão platform.
 
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from .base import BaseEntity, BaseEntityCreate, BaseEntityUpdate
 from .enums import (
     NotificationStatus, 
@@ -27,7 +27,8 @@ class Organization(BaseEntity):
     settings: Dict[str, Any] = Field(default_factory=dict, description="Organization-specific settings")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('slug')
+    @field_validator('slug')
+    @classmethod
     def validate_slug(cls, v):
         """Validate slug format."""
         import re
@@ -35,7 +36,8 @@ class Organization(BaseEntity):
             raise ValueError('Slug must contain only lowercase letters, numbers, and hyphens')
         return v
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate organization name."""
         if not v.strip():
@@ -51,14 +53,13 @@ class Permission(BaseModel):
     action: PermissionAction = Field(..., description="Action type")
     description: str = Field(..., description="Human-readable description")
     
-    @validator('id')
-    def validate_permission_id(cls, v, values):
+    @model_validator(mode='after')
+    def validate_permission_id(self):
         """Validate permission ID format."""
-        if 'resource' in values and 'action' in values:
-            expected_id = f"{values['resource']}:{values['action']}"
-            if v != expected_id:
-                raise ValueError(f'Permission ID must be "{expected_id}"')
-        return v
+        expected_id = f"{self.resource}:{self.action}"
+        if self.id != expected_id:
+            raise ValueError(f'Permission ID must be "{expected_id}"')
+        return self
 
 
 class Role(BaseEntity):
@@ -70,14 +71,16 @@ class Role(BaseEntity):
     is_system_role: bool = Field(default=False, description="Whether this is a system-defined role")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate role name."""
         if not v.strip():
             raise ValueError('Role name cannot be empty')
         return v.strip()
     
-    @validator('permissions')
+    @field_validator('permissions')
+    @classmethod
     def validate_permissions(cls, v):
         """Validate permission format."""
         for perm in v:
@@ -99,7 +102,8 @@ class User(BaseEntity):
     locked_until: Optional[datetime] = Field(None, description="Account lock expiration")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('email')
+    @field_validator('email')
+    @classmethod
     def validate_email(cls, v):
         """Validate email format."""
         import re
@@ -108,7 +112,8 @@ class User(BaseEntity):
             raise ValueError('Invalid email format')
         return v.lower()
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate user name."""
         if not v.strip():
@@ -136,24 +141,22 @@ class NotificationTarget(BaseEntity):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional target metadata")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate target name."""
         if not v.strip():
             raise ValueError('Target name cannot be empty')
         return v.strip()
     
-    @root_validator
-    def validate_hierarchy(cls, values):
+    @model_validator(mode='after')
+    def validate_hierarchy(self):
         """Validate hierarchy constraints."""
-        parent_id = values.get('parent_id')
-        target_id = values.get('id')
-        
         # Cannot be parent of itself
-        if parent_id and parent_id == target_id:
+        if self.parent_id and self.parent_id == self.id:
             raise ValueError('Target cannot be parent of itself')
         
-        return values
+        return self
 
 
 class NotificationCategory(BaseEntity):
@@ -166,14 +169,16 @@ class NotificationCategory(BaseEntity):
     target_ids: List[str] = Field(default_factory=list, description="Associated target IDs")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate category name."""
         if not v.strip():
             raise ValueError('Category name cannot be empty')
         return v.strip()
     
-    @validator('color')
+    @field_validator('color')
+    @classmethod
     def validate_color(cls, v):
         """Validate color format."""
         if v is None:
@@ -198,14 +203,16 @@ class Endpoint(BaseEntity):
     is_active: bool = Field(default=True, description="Whether endpoint is active")
     schema_version: int = Field(default=1, description="Schema version")
     
-    @validator('name')
+    @field_validator('name')
+    @classmethod
     def validate_name(cls, v):
         """Validate endpoint name."""
         if not v.strip():
             raise ValueError('Endpoint name cannot be empty')
         return v.strip()
     
-    @validator('url')
+    @field_validator('url')
+    @classmethod
     def validate_url(cls, v):
         """Validate URL format."""
         import re
@@ -214,7 +221,8 @@ class Endpoint(BaseEntity):
             raise ValueError('Invalid URL format')
         return v
     
-    @validator('data_mapping')
+    @field_validator('data_mapping')
+    @classmethod
     def validate_data_mapping(cls, v):
         """Validate data mapping structure."""
         if not isinstance(v, dict):
@@ -243,49 +251,43 @@ class Notification(BaseEntity):
     correlation_id: Optional[str] = Field(None, description="Correlation ID for tracing")
     schema_version: int = Field(default=2, description="Schema version")
     
-    @validator('title')
+    @field_validator('title')
+    @classmethod
     def validate_title(cls, v):
         """Validate notification title."""
         if not v.strip():
             raise ValueError('Notification title cannot be empty')
         return v.strip()
     
-    @validator('body')
+    @field_validator('body')
+    @classmethod
     def validate_body(cls, v):
         """Validate notification body."""
         if not v.strip():
             raise ValueError('Notification body cannot be empty')
         return v.strip()
     
-    @validator('origin')
+    @field_validator('origin')
+    @classmethod
     def validate_origin(cls, v):
         """Validate origin."""
         if not v.strip():
             raise ValueError('Origin cannot be empty')
         return v.strip()
     
-    @validator('denial_reason')
-    def validate_denial_reason(cls, v, values):
-        """Validate denial reason when status is denied."""
-        status = values.get('status')
-        if status == NotificationStatus.DENIED and not v:
-            raise ValueError('Denial reason is required when status is denied')
-        return v
-    
-    @root_validator
-    def validate_status_transitions(cls, values):
+    @model_validator(mode='after')
+    def validate_status_transitions(self):
         """Validate status-dependent fields."""
-        status = values.get('status')
+        if self.status == NotificationStatus.DENIED and not self.denial_reason:
+            raise ValueError('Denial reason is required when status is denied')
         
-        if status == NotificationStatus.APPROVED:
-            if not values.get('approved_by'):
-                raise ValueError('approved_by is required when status is approved')
+        if self.status == NotificationStatus.APPROVED and not self.approved_by:
+            raise ValueError('approved_by is required when status is approved')
         
-        if status == NotificationStatus.DENIED:
-            if not values.get('denied_by'):
-                raise ValueError('denied_by is required when status is denied')
+        if self.status == NotificationStatus.DENIED and not self.denied_by:
+            raise ValueError('denied_by is required when status is denied')
         
-        return values
+        return self
     
     def can_approve(self) -> bool:
         """Check if notification can be approved."""
@@ -347,14 +349,12 @@ class AuditLog(BaseModel):
     span_id: Optional[str] = Field(None, description="OpenTelemetry span ID")
     schema_version: int = Field(default=1, description="Schema version")
     
-    class Config:
-        """Pydantic configuration."""
-        use_enum_values = True
-        json_encoders = {
-            datetime: lambda v: v.isoformat() + "Z" if v else None
-        }
+    model_config = ConfigDict(
+        use_enum_values=True
+    )
     
-    @validator('entity')
+    @field_validator('entity')
+    @classmethod
     def validate_entity(cls, v):
         """Validate entity type."""
         valid_entities = [
@@ -365,7 +365,8 @@ class AuditLog(BaseModel):
             raise ValueError(f'Invalid entity type: {v}')
         return v
     
-    @validator('action')
+    @field_validator('action')
+    @classmethod
     def validate_action(cls, v):
         """Validate action type."""
         valid_actions = [
