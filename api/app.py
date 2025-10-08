@@ -108,18 +108,10 @@ app.hal_formatter = hal_formatter
 app.validation_middleware = validation_middleware
 app.auth_middleware = auth_middleware
 
-# Register routes (will be implemented in later tasks)
-# from routes.auth import auth_bp
-# from routes.notifications import notifications_bp
-# from routes.admin import admin_bp
-# from routes.audit import audit_bp
-# from routes.health import health_bp
+# Register routes
+from routes.notifications import notifications_bp
 
-# app.register_blueprint(auth_bp)
-# app.register_blueprint(notifications_bp)
-# app.register_blueprint(admin_bp)
-# app.register_blueprint(audit_bp)
-# app.register_blueprint(health_bp)
+app.register_blueprint(notifications_bp)
 
 @app.route('/api/healthz')
 def health_check():

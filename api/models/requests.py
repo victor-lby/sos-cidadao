@@ -117,6 +117,33 @@ class UpdateRoleRequest(BaseEntityUpdate):
     permissions: Optional[List[str]] = Field(None, description="List of permission IDs")
 
 
+class NotificationWebhookRequest(BaseModel):
+    """Request model for incoming notification webhook."""
+    
+    title: str = Field(..., min_length=1, max_length=200, description="Notification title")
+    body: str = Field(..., min_length=1, max_length=2000, description="Notification body")
+    severity: int = Field(..., ge=0, le=5, description="Notification severity level (0-5)")
+    targets: Optional[List[str]] = Field(default_factory=list, description="Target IDs")
+    categories: Optional[List[str]] = Field(default_factory=list, description="Category IDs")
+    base_target: Optional[str] = Field(None, description="Base target for hierarchy expansion")
+    
+    @field_validator('title')
+    @classmethod
+    def validate_title(cls, v):
+        """Validate title."""
+        if not v.strip():
+            raise ValueError('Title cannot be empty')
+        return v.strip()
+    
+    @field_validator('body')
+    @classmethod
+    def validate_body(cls, v):
+        """Validate body."""
+        if not v.strip():
+            raise ValueError('Body cannot be empty')
+        return v.strip()
+
+
 class CreateNotificationRequest(BaseEntityCreate):
     """Request model for creating a notification via webhook."""
     
