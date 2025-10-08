@@ -250,3 +250,62 @@ NotificationTargetCollection = HalCollection[NotificationTargetResponse]
 NotificationCategoryCollection = HalCollection[NotificationCategoryResponse]
 EndpointCollection = HalCollection[EndpointResponse]
 AuditLogCollection = HalCollection[AuditLogResponse]
+
+
+class LoginResponse(HalResponse):
+    """Login response model with JWT tokens."""
+    
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    token_type: str = Field(default="Bearer", description="Token type")
+    expires_in: int = Field(..., description="Access token expiration in seconds")
+    access_expires_at: str = Field(..., description="Access token expiration timestamp")
+    refresh_expires_at: str = Field(..., description="Refresh token expiration timestamp")
+    user: Dict[str, Any] = Field(..., description="User information")
+
+
+class RefreshTokenResponse(HalResponse):
+    """Token refresh response model."""
+    
+    access_token: str = Field(..., description="New JWT access token")
+    token_type: str = Field(default="Bearer", description="Token type")
+    expires_in: int = Field(..., description="Access token expiration in seconds")
+    expires_at: str = Field(..., description="Access token expiration timestamp")
+
+
+class LogoutResponse(HalResponse):
+    """Logout response model."""
+    
+    message: str = Field(..., description="Logout confirmation message")
+
+
+class AuditLogResponse(HalResponse):
+    """Audit log entry response model."""
+    
+    id: str = Field(..., description="Audit log ID")
+    timestamp: str = Field(..., description="Action timestamp")
+    user_id: str = Field(..., description="User who performed the action")
+    organization_id: str = Field(..., description="Organization scope")
+    entity: str = Field(..., description="Entity type")
+    entity_id: str = Field(..., description="Entity identifier")
+    action: str = Field(..., description="Action performed")
+    before: Optional[Dict[str, Any]] = Field(None, description="State before action")
+    after: Optional[Dict[str, Any]] = Field(None, description="State after action")
+    ip_address: Optional[str] = Field(None, description="Client IP address")
+    user_agent: Optional[str] = Field(None, description="Client user agent")
+    session_id: Optional[str] = Field(None, description="Session identifier")
+    trace_id: Optional[str] = Field(None, description="OpenTelemetry trace ID")
+    span_id: Optional[str] = Field(None, description="OpenTelemetry span ID")
+
+
+class AuditLogCollectionResponse(HalCollection[AuditLogResponse]):
+    """Collection of audit log entries."""
+    pass
+
+
+class AuditStatisticsResponse(HalResponse):
+    """Audit statistics response model."""
+    
+    period: Dict[str, Any] = Field(..., description="Statistics period information")
+    total_actions: int = Field(..., description="Total number of actions in period")
+    entities: Dict[str, Dict[str, Any]] = Field(..., description="Statistics by entity type")

@@ -174,6 +174,34 @@ def receive_notification_webhook():
             result.notification.id = notification_id
             span.set_attribute("notification.id", notification_id)
             
+            # Create audit log entry for notification creation
+            with tracer.start_as_current_span("audit.log_creation") as audit_span:
+                from ..middleware.audit import log_notification_workflow_event
+                
+                after_state = {
+                    "id": notification_id,
+                    "title": result.notification.title,
+                    "severity": result.notification.severity,
+                    "status": result.notification.status,
+                    "origin": result.notification.origin,
+                    "created_by": result.notification.created_by
+                }
+                
+                audit_id = log_notification_workflow_event(
+                    notification_id=notification_id,
+                    action="create",
+                    before_state=None,
+                    after_state=after_state
+                )
+                
+                audit_span.set_attributes({
+                    "audit.operation": "log_creation",
+                    "audit.status": "completed" if audit_id else "failed",
+                    "audit.log_id": audit_id or "none",
+                    "notification.id": notification_id,
+                    "user.id": user_context.user_id
+                })
+            
             # Build HAL response
             hal_response = notification_domain.build_notification_hal_response(
                 result.notification,
@@ -890,24 +918,50 @@ def approve_notification(notification_id: str):
             
             # Create audit log entry
             with tracer.start_as_current_span("audit.log_approval") as audit_span:
-                # TODO: Implement audit logging (will be done in task 7)
+                from ..middleware.audit import log_notification_workflow_event
+                
+                # Prepare before and after states for audit
+                before_state = {
+                    "status": notification.status,
+                    "target_ids": notification.target_ids,
+                    "category_ids": notification.category_ids,
+                    "approved_by": notification.approved_by,
+                    "approved_at": notification.approved_at.isoformat() if notification.approved_at else None
+                }
+                
+                after_state = {
+                    "status": result.notification.status,
+                    "target_ids": result.notification.target_ids,
+                    "category_ids": result.notification.category_ids,
+                    "approved_by": result.notification.approved_by,
+                    "approved_at": result.notification.approved_at.isoformat() if result.notification.approved_at else None
+                }
+                
+                audit_id = log_notification_workflow_event(
+                    notification_id=notification_id,
+                    action="approve",
+                    before_state=before_state,
+                    after_state=after_state
+                )
+                
                 audit_span.set_attributes({
                     "audit.operation": "log_approval",
-                    "audit.status": "placeholder",
+                    "audit.status": "completed" if audit_id else "failed",
+                    "audit.log_id": audit_id or "none",
                     "notification.id": notification_id,
                     "user.id": user_context.user_id
                 })
                 
                 logger.info(
-                    "Audit logging placeholder - notification approved",
+                    "Notification approval audit logged",
                     extra={
+                        "audit_id": audit_id,
                         "notification_id": notification_id,
                         "user_id": user_context.user_id,
                         "org_id": user_context.org_id,
                         "action": "approve",
                         "before_status": notification.status,
-                        "after_status": result.notification.status,
-                        "note": "Audit service will be implemented in task 7"
+                        "after_status": result.notification.status
                     }
                 )
             
@@ -1171,25 +1225,49 @@ def deny_notification(notification_id: str):
             
             # Create audit log entry
             with tracer.start_as_current_span("audit.log_denial") as audit_span:
-                # TODO: Implement audit logging (will be done in task 7)
+                from ..middleware.audit import log_notification_workflow_event
+                
+                # Prepare before and after states for audit
+                before_state = {
+                    "status": notification.status,
+                    "denial_reason": notification.denial_reason,
+                    "denied_by": notification.denied_by,
+                    "denied_at": notification.denied_at.isoformat() if notification.denied_at else None
+                }
+                
+                after_state = {
+                    "status": result.notification.status,
+                    "denial_reason": result.notification.denial_reason,
+                    "denied_by": result.notification.denied_by,
+                    "denied_at": result.notification.denied_at.isoformat() if result.notification.denied_at else None
+                }
+                
+                audit_id = log_notification_workflow_event(
+                    notification_id=notification_id,
+                    action="deny",
+                    before_state=before_state,
+                    after_state=after_state
+                )
+                
                 audit_span.set_attributes({
                     "audit.operation": "log_denial",
-                    "audit.status": "placeholder",
+                    "audit.status": "completed" if audit_id else "failed",
+                    "audit.log_id": audit_id or "none",
                     "notification.id": notification_id,
                     "user.id": user_context.user_id
                 })
                 
                 logger.info(
-                    "Audit logging placeholder - notification denied",
+                    "Notification denial audit logged",
                     extra={
+                        "audit_id": audit_id,
                         "notification_id": notification_id,
                         "user_id": user_context.user_id,
                         "org_id": user_context.org_id,
                         "action": "deny",
                         "before_status": notification.status,
                         "after_status": result.notification.status,
-                        "denial_reason": deny_request.reason[:100],  # Truncated for logs
-                        "note": "Audit service will be implemented in task 7"
+                        "denial_reason": deny_request.reason[:100]  # Truncated for logs
                     }
                 )
             
