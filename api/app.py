@@ -7,11 +7,20 @@ multi-tenant civic notification platform.
 """
 
 import os
-from flask import Flask
-from flask_cors import CORS
+from flask import Flask, request, jsonify
 from flask_openapi3 import OpenAPI, Info, Tag
 from observability.config import setup_observability
 from observability.middleware import add_observability_middleware
+
+# Import middleware and utilities
+from middleware.cors import configure_cors
+from middleware.error_handler import ErrorHandlerMiddleware, register_custom_error_handlers
+from middleware.validation import ValidationMiddleware
+from middleware.auth import AuthMiddleware
+from services.hal import create_hal_formatter
+from services.mongodb import MongoDBService
+from services.redis import RedisService
+from services.auth import AuthService
 
 # Initialize observability first
 setup_observability()
@@ -34,9 +43,6 @@ tags = [
 
 # Create Flask app with OpenAPI
 app = OpenAPI(__name__, info=info, tags=tags)
-
-# Configure CORS
-CORS(app, origins=["http://localhost:3000", "https://*.vercel.app"])
 
 # Add observability middleware
 add_observability_middleware(app)
@@ -63,6 +69,45 @@ app.config['AMQP_URL'] = os.getenv('AMQP_URL', 'amqp://admin:admin123@localhost:
 app.config['HAL_STRICT'] = os.getenv('HAL_STRICT', 'false').lower() == 'true'
 app.config['OTEL_ENABLED'] = os.getenv('OTEL_ENABLED', 'true').lower() == 'true'
 
+# API configuration
+app.config['BASE_URL'] = os.getenv('BASE_URL', 'http://localhost:5000')
+
+# Initialize services
+mongodb_service = MongoDBService(app.config['MONGODB_URI'])
+redis_service = RedisService(
+    app.config['REDIS_URL'], 
+    app.config['REDIS_TOKEN']
+)
+auth_service = AuthService(
+    app.config['JWT_SECRET_KEY'],
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'],
+    app.config['JWT_REFRESH_TOKEN_EXPIRES']
+)
+
+# Initialize middleware
+hal_formatter = create_hal_formatter(app.config['BASE_URL'])
+validation_middleware = ValidationMiddleware(app.config['BASE_URL'])
+auth_middleware = AuthMiddleware(auth_service, redis_service)
+error_handler = ErrorHandlerMiddleware(app, app.config['BASE_URL'])
+
+# Configure CORS
+cors_middleware = configure_cors(
+    app,
+    allowed_origins=None,  # Will use defaults from environment
+    allow_credentials=True
+)
+
+# Register custom error handlers
+register_custom_error_handlers(app, hal_formatter)
+
+# Make services available to routes
+app.mongodb_service = mongodb_service
+app.redis_service = redis_service
+app.auth_service = auth_service
+app.hal_formatter = hal_formatter
+app.validation_middleware = validation_middleware
+app.auth_middleware = auth_middleware
+
 # Register routes (will be implemented in later tasks)
 # from routes.auth import auth_bp
 # from routes.notifications import notifications_bp
@@ -78,16 +123,32 @@ app.config['OTEL_ENABLED'] = os.getenv('OTEL_ENABLED', 'true').lower() == 'true'
 
 @app.route('/api/healthz')
 def health_check():
-    """Basic health check endpoint"""
-    return {
+    """Enhanced health check endpoint with HAL formatting"""
+    from datetime import datetime
+    
+    health_data = {
         "status": "healthy",
         "service": "sos-cidadao-api",
         "version": "1.0.0",
         "environment": app.config['ENVIRONMENT'],
-        "_links": {
-            "self": {"href": "/api/healthz"}
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "dependencies": {
+            "mongodb": {"status": "healthy"},  # Will be enhanced in later tasks
+            "redis": {"status": "healthy"},
+            "amqp": {"status": "healthy"}
         }
     }
+    
+    # Add HAL links
+    health_response = hal_formatter.builder.build_resource_response(
+        health_data,
+        "health",
+        "system",
+        "system",
+        []  # No user permissions needed for health check
+    )
+    
+    return jsonify(health_response)
 
 if __name__ == '__main__':
     # Development server
