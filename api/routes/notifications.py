@@ -875,3 +875,284 @@ def approve_notification(notification_id: str):
                 "internal_error",
                 request.url
             )), 500
+
+@not
+ifications_bp.post('/<notification_id>/deny')
+@require_jwt
+def deny_notification(notification_id: str):
+    """
+    Deny notification with reason.
+    
+    This endpoint denies a notification, stores the denial reason,
+    and creates an audit trail for the decision.
+    """
+    from flask import g
+    user_context = g.user_context
+    
+    with tracer.start_as_current_span(
+        "notification.deny",
+        attributes={
+            "user.id": user_context.user_id,
+            "organization.id": user_context.org_id,
+            "notification.id": notification_id,
+            "operation": "deny"
+        }
+    ) as span:
+        try:
+            # Check permission
+            if not user_context.has_permission("notification:deny"):
+                span.set_status(Status(StatusCode.ERROR, "Insufficient permissions"))
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
+                    "Insufficient permissions to deny notifications",
+                    403,
+                    "insufficient_permissions",
+                    request.url
+                )), 403
+            
+            # Get request data
+            request_data = request.get_json()
+            if not request_data:
+                span.set_status(Status(StatusCode.ERROR, "Missing request body"))
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
+                    "Missing request body",
+                    400,
+                    "validation_error",
+                    request.url
+                )), 400
+            
+            # Validate request using Pydantic
+            try:
+                deny_request = DenyNotificationRequest(**request_data)
+                span.set_attribute("denial.reason_length", len(deny_request.reason))
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, "Validation failed"))
+                logger.warning(
+                    "Denial request validation failed",
+                    extra={
+                        "notification_id": notification_id,
+                        "user_id": user_context.user_id,
+                        "org_id": user_context.org_id,
+                        "validation_errors": str(e)
+                    }
+                )
+                return jsonify(current_app.hal_formatter.builder.build_validation_error_response(
+                    str(e),
+                    request.url
+                )), 400
+            
+            # Get notification from database
+            with tracer.start_as_current_span("db.notification.get") as db_span:
+                notification_doc = current_app.mongodb_service.find_one_by_org(
+                    "notifications",
+                    user_context.org_id,
+                    notification_id
+                )
+                
+                db_span.set_attributes({
+                    "db.collection": "notifications",
+                    "db.operation": "find_one",
+                    "db.organization_id": user_context.org_id,
+                    "db.found": notification_doc is not None
+                })
+            
+            if not notification_doc:
+                span.set_status(Status(StatusCode.ERROR, "Notification not found"))
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
+                    "Notification not found",
+                    404,
+                    "not_found",
+                    request.url
+                )), 404
+            
+            # Convert to notification entity
+            try:
+                notification_data = {
+                    "id": str(notification_doc["_id"]),
+                    "organization_id": notification_doc["organizationId"],
+                    "title": notification_doc["title"],
+                    "body": notification_doc["body"],
+                    "severity": notification_doc["severity"],
+                    "origin": notification_doc["origin"],
+                    "original_payload": notification_doc["originalPayload"],
+                    "base_target_id": notification_doc.get("baseTargetId"),
+                    "target_ids": notification_doc.get("targetIds", []),
+                    "category_ids": notification_doc.get("categoryIds", []),
+                    "status": notification_doc["status"],
+                    "denial_reason": notification_doc.get("denialReason"),
+                    "approved_at": notification_doc.get("approvedAt"),
+                    "approved_by": notification_doc.get("approvedBy"),
+                    "denied_at": notification_doc.get("deniedAt"),
+                    "denied_by": notification_doc.get("deniedBy"),
+                    "dispatched_at": notification_doc.get("dispatchedAt"),
+                    "correlation_id": notification_doc.get("correlationId"),
+                    "created_at": notification_doc["createdAt"],
+                    "updated_at": notification_doc["updatedAt"],
+                    "deleted_at": notification_doc.get("deletedAt"),
+                    "created_by": notification_doc["createdBy"],
+                    "updated_by": notification_doc["updatedBy"],
+                    "schema_version": notification_doc.get("schemaVersion", 1)
+                }
+                
+                from ..models.entities import Notification
+                notification = Notification(**notification_data)
+                
+            except Exception as e:
+                span.set_status(Status(StatusCode.ERROR, "Failed to parse notification"))
+                logger.error(
+                    f"Failed to parse notification {notification_id}: {str(e)}",
+                    extra={
+                        "notification_id": notification_id,
+                        "org_id": user_context.org_id,
+                        "parse_error": str(e)
+                    }
+                )
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
+                    "Failed to parse notification data",
+                    500,
+                    "data_error",
+                    request.url
+                )), 500
+            
+            # Process denial using domain logic
+            with tracer.start_as_current_span("domain.notification.deny") as domain_span:
+                result = notification_domain.deny_notification(
+                    notification,
+                    deny_request.reason,
+                    user_context
+                )
+                
+                domain_span.set_attributes({
+                    "domain.operation": "deny_notification",
+                    "domain.result": "success" if result.success else "failed"
+                })
+            
+            if not result.success:
+                span.set_status(Status(StatusCode.ERROR, result.error_message))
+                logger.error(
+                    "Failed to deny notification",
+                    extra={
+                        "notification_id": notification_id,
+                        "user_id": user_context.user_id,
+                        "org_id": user_context.org_id,
+                        "error": result.error_message,
+                        "validation_errors": result.validation_errors
+                    }
+                )
+                
+                if result.validation_errors:
+                    return jsonify(current_app.hal_formatter.builder.build_validation_error_response(
+                        result.error_message,
+                        request.url,
+                        result.validation_errors
+                    )), 400
+                else:
+                    return jsonify(current_app.hal_formatter.builder.build_error_response(
+                        result.error_message,
+                        500,
+                        "processing_error",
+                        request.url
+                    )), 500
+            
+            # Update notification in database
+            with tracer.start_as_current_span("db.notification.update") as db_span:
+                update_data = result.notification.model_dump()
+                update_data.pop("id", None)  # Remove ID from update data
+                
+                success = current_app.mongodb_service.update_by_org(
+                    "notifications",
+                    user_context.org_id,
+                    notification_id,
+                    update_data
+                )
+                
+                db_span.set_attributes({
+                    "db.collection": "notifications",
+                    "db.operation": "update",
+                    "db.organization_id": user_context.org_id,
+                    "db.success": success
+                })
+                
+                if not success:
+                    span.set_status(Status(StatusCode.ERROR, "Failed to update notification"))
+                    logger.error(
+                        "Failed to update notification in database",
+                        extra={
+                            "notification_id": notification_id,
+                            "user_id": user_context.user_id,
+                            "org_id": user_context.org_id
+                        }
+                    )
+                    return jsonify(current_app.hal_formatter.builder.build_error_response(
+                        "Failed to update notification",
+                        500,
+                        "database_error",
+                        request.url
+                    )), 500
+            
+            # Create audit log entry
+            with tracer.start_as_current_span("audit.log_denial") as audit_span:
+                # TODO: Implement audit logging (will be done in task 7)
+                audit_span.set_attributes({
+                    "audit.operation": "log_denial",
+                    "audit.status": "placeholder",
+                    "notification.id": notification_id,
+                    "user.id": user_context.user_id
+                })
+                
+                logger.info(
+                    "Audit logging placeholder - notification denied",
+                    extra={
+                        "notification_id": notification_id,
+                        "user_id": user_context.user_id,
+                        "org_id": user_context.org_id,
+                        "action": "deny",
+                        "before_status": notification.status,
+                        "after_status": result.notification.status,
+                        "denial_reason": deny_request.reason[:100],  # Truncated for logs
+                        "note": "Audit service will be implemented in task 7"
+                    }
+                )
+            
+            # Build HAL response
+            hal_response = notification_domain.build_notification_hal_response(
+                result.notification,
+                user_context,
+                current_app.config['BASE_URL']
+            )
+            
+            # Log successful denial
+            logger.info(
+                "Notification denied successfully",
+                extra={
+                    "notification_id": notification_id,
+                    "user_id": user_context.user_id,
+                    "org_id": user_context.org_id,
+                    "denial_reason": deny_request.reason[:100],  # Truncated for logs
+                    "severity": result.notification.severity,
+                    "title": result.notification.title[:50]
+                }
+            )
+            
+            span.set_status(Status(StatusCode.OK))
+            return jsonify(hal_response), 200
+            
+        except Exception as e:
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, str(e)))
+            logger.error(
+                "Unexpected error denying notification",
+                extra={
+                    "notification_id": notification_id,
+                    "user_id": user_context.user_id,
+                    "org_id": user_context.org_id,
+                    "error": str(e)
+                },
+                exc_info=True
+            )
+            
+            return jsonify(current_app.hal_formatter.builder.build_error_response(
+                "Internal server error",
+                500,
+                "internal_error",
+                request.url
+            )), 500
