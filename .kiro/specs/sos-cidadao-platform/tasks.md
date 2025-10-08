@@ -536,7 +536,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: set up release management and changelog"`
   - _Requirements: 24.1, 24.2, 24.3, 24.4_
 
-- [-] 12.5 Write documentation validation tests
+- [x] 12.5 Write documentation validation tests
   - Test README instructions with fresh environment setup
   - Validate OpenAPI spec completeness and accuracy
   - Test contribution workflow and development setup
@@ -544,7 +544,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "test: add documentation validation tests"`
   - _Requirements: 22.3, 8.1_
 
-- [ ] 12.6 Merge final documentation
+- [-] 12.6 Merge final documentation
   - Create pull request for final documentation
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/final-documentation`
