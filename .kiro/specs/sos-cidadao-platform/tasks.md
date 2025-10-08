@@ -387,7 +387,7 @@ Build Vue 3 frontend with Vuetify 3
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [-] 10.2 Set up Vue 3 project with Vuetify 3
+- [x] 10.2 Set up Vue 3 project with Vuetify 3
   - Initialize Vue 3 project with Vite build tool and TypeScript
   - Configure Vuetify 3 with Material Design 3 theming
   - Set up Vue Router for client-side routing
@@ -396,7 +396,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: set up Vue 3 project with Vuetify 3"`
   - _Requirements: 17.1, 17.2, 17.3_
 
-- [ ] 10.3 Create HAL-aware API client and authentication
+- [-] 10.3 Create HAL-aware API client and authentication
   - Implement HAL-aware HTTP client with Axios
   - Create authentication service with JWT token management
   - Add automatic token refresh and logout on expiration
