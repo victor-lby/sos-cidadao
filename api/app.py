@@ -88,6 +88,10 @@ auth_service = AuthService(
 from services.amqp import create_amqp_service
 amqp_service = create_amqp_service()
 
+# Initialize audit service
+from services.audit import AuditService
+audit_service = AuditService(mongodb_service)
+
 # Initialize middleware
 hal_formatter = create_hal_formatter(app.config['BASE_URL'])
 validation_middleware = ValidationMiddleware(app.config['BASE_URL'])
@@ -109,14 +113,21 @@ app.mongodb_service = mongodb_service
 app.redis_service = redis_service
 app.auth_service = auth_service
 app.amqp_service = amqp_service
+app.audit_service = audit_service
 app.hal_formatter = hal_formatter
 app.validation_middleware = validation_middleware
 app.auth_middleware = auth_middleware
 
 # Register routes
 from routes.notifications import notifications_bp
+from routes.organizations import org_bp
+from routes.auth import auth_bp
+from routes.audit import audit_bp
 
 app.register_blueprint(notifications_bp)
+app.register_blueprint(org_bp)
+app.register_blueprint(auth_bp)
+app.register_blueprint(audit_bp)
 
 @app.route('/api/healthz')
 def health_check():

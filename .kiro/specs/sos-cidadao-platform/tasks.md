@@ -198,19 +198,19 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "test: add integration tests for notification workflow"`
   - _Requirements: 3.1, 4.1, 5.1, 6.1_
 
-- [-] 5.8 Merge notification workflow implementation
+- [x] 5.8 Merge notification workflow implementation
   - Create pull request for notification workflow feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/notification-workflow`
   - _Requirements: 24.1_
 
-- [ ] 6. Implement AMQP message publishing
-- [ ] 6.1 Create feature branch for AMQP integration
+- [x] 6. Implement AMQP message publishing
+- [x] 6.1 Create feature branch for AMQP integration
   - Create feature branch: `git checkout -b feat/amqp-publishing`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 6.2 Create AMQP service for LavinMQ integration
+- [x] 6.2 Create AMQP service for LavinMQ integration
   - Implement AMQPService class with pika library for LavinMQ
   - Add connection management with connection pooling and error handling
   - Create exchange and queue setup functionality
@@ -218,7 +218,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement AMQP service for LavinMQ"`
   - _Requirements: 13.1, 13.3_
 
-- [ ] 6.3 Implement payload transformation logic
+- [x] 6.3 Implement payload transformation logic
   - Create data mapping engine using JSONPath transformations
   - Add endpoint-specific payload formatting based on data_mapping
   - Include correlation ID and OpenTelemetry trace context in messages
@@ -226,7 +226,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: add payload transformation for AMQP messages"`
   - _Requirements: 13.2, 13.5, 10.4_
 
-- [ ] 6.4 Integrate AMQP publishing with approval workflow
+- [x] 6.4 Integrate AMQP publishing with approval workflow
   - Connect notification approval to message publishing
   - Add retry logic with exponential backoff for failed publishes
   - Handle publishing failures gracefully with status updates
@@ -234,7 +234,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: integrate AMQP publishing with notification approval"`
   - _Requirements: 5.2, 5.5, 13.4, 10.3_
 
-- [ ] 6.5 Write integration tests for AMQP publishing
+- [x] 6.5 Write integration tests for AMQP publishing
   - Test message publishing with various payload transformations
   - Test retry logic and error handling scenarios
   - Test correlation ID and trace context propagation
@@ -242,19 +242,19 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "test: add integration tests for AMQP publishing"`
   - _Requirements: 13.1, 13.2, 13.4_
 
-- [ ] 6.6 Merge AMQP implementation
+- [x] 6.6 Merge AMQP implementation
   - Create pull request for AMQP publishing feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/amqp-publishing`
   - _Requirements: 24.1_
 
-- [ ] 7. Implement audit logging system
-- [ ] 7.1 Create feature branch for audit logging
+- [-] 7. Implement audit logging system
+- [x] 7.1 Create feature branch for audit logging
   - Create feature branch: `git checkout -b feat/audit-logging`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 7.2 Create audit service for action logging
+- [x] 7.2 Create audit service for action logging
   - Implement AuditService class with MongoDB persistence and organization scoping
   - Add structured audit log entry creation with before/after state capture
   - Include OpenTelemetry trace ID correlation for observability
@@ -262,7 +262,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement audit service for action logging"`
   - _Requirements: 9.1, 9.5, 10.4_
 
-- [ ] 7.3 Integrate audit logging with all state-changing operations
+- [x] 7.3 Integrate audit logging with all state-changing operations
   - Add audit logging to notification approval/denial workflows
   - Include audit logging in user and organization management
   - Add audit logging to authentication events (login, logout, token refresh)
@@ -270,7 +270,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: integrate audit logging with state changes"`
   - _Requirements: 5.4, 6.2, 9.1, 2.1_
 
-- [ ] 7.4 Create audit log query and export endpoints
+- [x] 7.4 Create audit log query and export endpoints
   - Implement GET /api/audit-logs with filtering, pagination, and HAL format
   - Add audit log export functionality (CSV/JSON) with streaming
   - Include organization scoping and permission checks
@@ -278,7 +278,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: add audit log query and export endpoints"`
   - _Requirements: 9.2, 9.3, 9.4, 7.1_
 
-- [ ] 7.5 Write integration tests for audit logging
+- [x] 7.5 Write integration tests for audit logging
   - Test audit log creation for all tracked actions
   - Test audit log querying with various filters and pagination
   - Test audit log export functionality and formats
@@ -292,13 +292,13 @@ Implement notification workflow endpoints
   - Delete feature branch: `git branch -d feat/audit-logging`
   - _Requirements: 24.1_
 
-- [ ] 8. Implement management endpoints for entities
-- [ ] 8.1 Create feature branch for entity management
+- [-] 8. Implement management endpoints for entities
+- [x] 8.1 Create feature branch for entity management
   - Create feature branch: `git checkout -b feat/entity-management`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 8.2 Create authentication endpoints
+- [x] 8.2 Create authentication endpoints
   - Implement POST /api/auth/login with email/password validation
   - Add POST /api/auth/refresh for token refresh
   - Add POST /api/auth/logout with token revocation
@@ -306,7 +306,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: implement authentication endpoints"`
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 8.3 Create organization management endpoints
+- [-] 8.3 Create organization management endpoints
   - Implement CRUD operations for organizations with HAL responses
   - Add organization slug validation and uniqueness checking
   - Include soft delete functionality and audit logging
