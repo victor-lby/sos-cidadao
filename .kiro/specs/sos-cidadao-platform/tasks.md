@@ -24,7 +24,7 @@
   - _Requirements: 24.1_
 
 - [x] 2. Implement core data models and validation
-- [-] 2.1 Create feature branch for data models
+- [x] 2.1 Create feature branch for data models
   - Create feature branch: `git checkout -b feat/data-models`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
@@ -50,43 +50,55 @@
   - Commit changes: `git commit -m "test: add unit tests for data models and MongoDB service"`
   - _Requirements: 1.2, 11.1_
 
-- [x] 2.5 Merge data models implementation
+- [x] 2.5 Set up Flask app with OpenTelemetry observability
+  - Initialize Flask application with OpenAPI 3.0 configuration
+  - Add OpenTelemetry instrumentation and structured logging
+  - Configure environment-based observability settings
+  - Add basic health check endpoint with HAL response
+  - Commit changes: `git commit -m "feat: set up Flask app with OpenTelemetry observability"`
+  - _Requirements: 8.1, 10.1, 10.2, 23.1_
+
+- [x] 2.6 Merge data models implementation
   - Create pull request for data models feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/data-models`
-  - _Requirements: 24.1_- 
-  
-[ ] 3. Implement authentication and authorization system
-- [ ] 3.1 Create feature branch for authentication
+  - _Requirements: 24.1_
+
+- [-] 3. Implement authentication and authorization system
+- [x] 3.1 Create feature branch for authentication
   - Create feature branch: `git checkout -b feat/authentication`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 3.2 Create JWT authentication service
-  - Implement JWT token generation, validation, and refresh logic
+- [-] 3.2 Create JWT authentication service
+  - Implement JWT token generation, validation, and refresh logic with PyJWT
   - Add RS256 signing with public/private key pair
   - Create password hashing utilities with bcrypt
+  - Add JWT middleware for request authentication
   - Commit changes: `git commit -m "feat: implement JWT authentication service"`
   - _Requirements: 2.1, 2.2, 2.6_
 
 - [ ] 3.3 Implement Redis service for token management
-  - Create RedisService class with Upstash HTTP client
+  - Create RedisService class with Upstash HTTP client for serverless compatibility
   - Add JWT blocklist functionality with TTL
-  - Implement user permission caching
+  - Implement user permission caching with organization scoping
+  - Add connection pooling and error handling
   - Commit changes: `git commit -m "feat: add Redis service for token management"`
   - _Requirements: 2.3, 12.1, 12.2, 12.3_
 
 - [ ] 3.4 Create authorization domain logic
-  - Implement role-based permission aggregation
-  - Add permission checking functions
+  - Implement pure functions for role-based permission aggregation
+  - Add permission checking functions with organization scoping
   - Create user context building from JWT claims
+  - Add HAL affordance link generation based on permissions
   - Commit changes: `git commit -m "feat: implement authorization domain logic"`
   - _Requirements: 2.4, 2.5, 16.3, 21.1_
 
-- [ ]* 3.5 Write unit tests for authentication and authorization
+- [ ] 3.5 Write unit tests for authentication and authorization
   - Test JWT token lifecycle (generate, validate, refresh, revoke)
   - Test permission aggregation and checking logic
   - Test Redis token blocklist functionality
+  - Test user context building and validation
   - Commit changes: `git commit -m "test: add unit tests for authentication system"`
   - _Requirements: 2.1, 2.2, 2.3_
 
@@ -96,86 +108,97 @@
   - Delete feature branch: `git branch -d feat/authentication`
   - _Requirements: 24.1_
 
-- [ ] 4. Create Flask API foundation with OpenAPI
-- [ ] 4.1 Create feature branch for API foundation
-  - Create feature branch: `git checkout -b feat/api-foundation`
+- [ ] 4. Implement HAL response formatting and API utilities
+- [ ] 4.1 Create feature branch for HAL implementation
+  - Create feature branch: `git checkout -b feat/hal-responses`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 4.2 Set up Flask app with flask-openapi3
-  - Initialize Flask application with OpenAPI 3.0 configuration
-  - Add Pydantic request/response validation
-  - Configure CORS and security headers
-  - Commit changes: `git commit -m "feat: set up Flask app with OpenAPI 3.0"`
-  - _Requirements: 8.1, 8.4, 18.1_
-
-- [ ] 4.3 Implement HAL response formatting middleware
+- [ ] 4.2 Implement HAL response formatting utilities
   - Create HAL response builder with _links and _embedded support
-  - Add pagination link generation
+  - Add pagination link generation for collections
   - Implement conditional affordance links based on permissions
-  - Commit changes: `git commit -m "feat: implement HAL response formatting middleware"`
+  - Add error response formatting following RFC 7807
+  - Commit changes: `git commit -m "feat: implement HAL response formatting utilities"`
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 4.4 Add JWT authentication middleware
-  - Create Flask middleware for JWT validation
-  - Integrate with Redis blocklist checking
-  - Add organization context extraction from tokens
-  - Commit changes: `git commit -m "feat: add JWT authentication middleware"`
-  - _Requirements: 2.1, 2.3, 2.6_
+- [ ] 4.3 Create API utilities and middleware
+  - Add request validation middleware using Pydantic models
+  - Create organization context extraction utilities
+  - Add error handling middleware with structured responses
+  - Implement CORS configuration for frontend integration
+  - Commit changes: `git commit -m "feat: add API utilities and middleware"`
+  - _Requirements: 8.1, 8.4, 18.1_
 
-- [ ] 4.5 Write integration tests for API foundation
-  - Test OpenAPI spec generation and validation
-  - Test HAL response formatting
-  - Test JWT middleware with various token scenarios
-  - Commit changes: `git commit -m "test: add integration tests for API foundation"`
-  - _Requirements: 7.1, 8.1, 2.1_
+- [ ] 4.4 Write tests for HAL and API utilities
+  - Test HAL response formatting with various scenarios
+  - Test pagination link generation
+  - Test error response formatting
+  - Test middleware functionality
+  - Commit changes: `git commit -m "test: add tests for HAL and API utilities"`
+  - _Requirements: 7.1, 8.1_
 
-- [ ] 4.6 Merge API foundation implementation
-  - Create pull request for API foundation feature
+- [ ] 4.5 Merge HAL implementation
+  - Create pull request for HAL responses feature
   - Review and merge to main branch
-  - Delete feature branch: `git branch -d feat/api-foundation`
-  - _Requirements: 24.1_- [ ] 5.
- Implement notification workflow endpoints
+  - Delete feature branch: `git branch -d feat/hal-responses`
+  - _Requirements: 24.1_
+
+- [ ] 5.
+Implement notification workflow endpoints
 - [ ] 5.1 Create feature branch for notification workflow
   - Create feature branch: `git checkout -b feat/notification-workflow`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 5.2 Create notification intake webhook endpoint
-  - Implement POST /api/notifications/incoming with JWT protection
-  - Add request validation and organization scoping
-  - Store notifications with status='received' and preserve originalPayload
-  - Commit changes: `git commit -m "feat: implement notification intake webhook endpoint"`
-  - _Requirements: 3.1, 3.2, 3.3_
+- [ ] 5.2 Create notification domain logic
+  - Implement pure functions for notification workflow (receive, approve, deny)
+  - Add notification validation and status transition logic
+  - Create notification filtering and search functions
+  - Add notification-to-HAL response transformation functions
+  - Commit changes: `git commit -m "feat: implement notification domain logic"`
+  - _Requirements: 3.1, 3.2, 21.1_
 
-- [ ] 5.3 Implement notification listing and detail endpoints
+- [ ] 5.3 Create notification intake webhook endpoint
+  - Implement POST /api/notifications/incoming with JWT protection
+  - Add request validation using Pydantic models and organization scoping
+  - Store notifications with status='received' and preserve originalPayload
+  - Add OpenTelemetry tracing and structured logging
+  - Commit changes: `git commit -m "feat: implement notification intake webhook endpoint"`
+  - _Requirements: 3.1, 3.2, 3.3, 10.3_
+
+- [ ] 5.4 Implement notification listing and detail endpoints
   - Create GET /api/notifications with filtering, pagination, and HAL collection format
   - Add GET /api/notifications/{id} with HAL affordance links
   - Include conditional approve/deny links based on status and permissions
+  - Add search functionality across title and body fields
   - Commit changes: `git commit -m "feat: add notification listing and detail endpoints"`
   - _Requirements: 4.1, 4.2, 4.3, 7.3_
 
-- [ ] 5.4 Create notification approval endpoint
+- [ ] 5.5 Create notification approval endpoint
   - Implement POST /api/notifications/{id}/approve with target/category validation
   - Add business logic for status transitions and permission checks
-  - Integrate with AMQP publishing for dispatch
+  - Integrate with AMQP publishing for dispatch (placeholder for now)
+  - Add comprehensive audit logging with trace correlation
   - Commit changes: `git commit -m "feat: implement notification approval endpoint"`
-  - _Requirements: 5.1, 5.2, 5.3_
+  - _Requirements: 5.1, 5.2, 5.3, 9.1_
 
-- [ ] 5.5 Create notification denial endpoint
+- [ ] 5.6 Create notification denial endpoint
   - Implement POST /api/notifications/{id}/deny with reason storage
   - Add status transition validation and audit logging
+  - Include denial reason in HAL response and audit trail
   - Commit changes: `git commit -m "feat: add notification denial endpoint"`
-  - _Requirements: 6.1, 6.2, 6.3_
+  - _Requirements: 6.1, 6.2, 6.3, 9.1_
 
-- [ ]* 5.6 Write integration tests for notification endpoints
+- [ ] 5.7 Write integration tests for notification endpoints
   - Test complete notification workflow (receive → approve → dispatch)
   - Test notification denial with reason storage
   - Test HAL affordance links and pagination
+  - Test multi-tenant data isolation
   - Commit changes: `git commit -m "test: add integration tests for notification workflow"`
   - _Requirements: 3.1, 4.1, 5.1, 6.1_
 
-- [ ] 5.7 Merge notification workflow implementation
+- [ ] 5.8 Merge notification workflow implementation
   - Create pull request for notification workflow feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/notification-workflow`
@@ -188,30 +211,34 @@
   - _Requirements: 24.1_
 
 - [ ] 6.2 Create AMQP service for LavinMQ integration
-  - Implement AMQPService class with pika library
-  - Add connection management and error handling
+  - Implement AMQPService class with pika library for LavinMQ
+  - Add connection management with connection pooling and error handling
   - Create exchange and queue setup functionality
+  - Add serverless-friendly connection handling for Vercel
   - Commit changes: `git commit -m "feat: implement AMQP service for LavinMQ"`
   - _Requirements: 13.1, 13.3_
 
 - [ ] 6.3 Implement payload transformation logic
   - Create data mapping engine using JSONPath transformations
-  - Add endpoint-specific payload formatting
-  - Include correlation ID and trace context in messages
+  - Add endpoint-specific payload formatting based on data_mapping
+  - Include correlation ID and OpenTelemetry trace context in messages
+  - Add message serialization and validation
   - Commit changes: `git commit -m "feat: add payload transformation for AMQP messages"`
-  - _Requirements: 13.2, 13.5_
+  - _Requirements: 13.2, 13.5, 10.4_
 
 - [ ] 6.4 Integrate AMQP publishing with approval workflow
   - Connect notification approval to message publishing
-  - Add retry logic with exponential backoff
-  - Handle publishing failures gracefully
+  - Add retry logic with exponential backoff for failed publishes
+  - Handle publishing failures gracefully with status updates
+  - Add AMQP publishing spans to OpenTelemetry traces
   - Commit changes: `git commit -m "feat: integrate AMQP publishing with notification approval"`
-  - _Requirements: 5.2, 5.5, 13.4_
+  - _Requirements: 5.2, 5.5, 13.4, 10.3_
 
 - [ ] 6.5 Write integration tests for AMQP publishing
   - Test message publishing with various payload transformations
-  - Test retry logic and error handling
+  - Test retry logic and error handling scenarios
   - Test correlation ID and trace context propagation
+  - Test connection management and recovery
   - Commit changes: `git commit -m "test: add integration tests for AMQP publishing"`
   - _Requirements: 13.1, 13.2, 13.4_
 
@@ -219,38 +246,43 @@
   - Create pull request for AMQP publishing feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/amqp-publishing`
-  - _Requirements: 24.1_- 
-[ ] 7. Implement audit logging system
+  - _Requirements: 24.1_
+
+- [ ] 7. Implement audit logging system
 - [ ] 7.1 Create feature branch for audit logging
   - Create feature branch: `git checkout -b feat/audit-logging`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
 - [ ] 7.2 Create audit service for action logging
-  - Implement AuditService class with MongoDB persistence
-  - Add structured audit log entry creation
-  - Include OpenTelemetry trace ID correlation
+  - Implement AuditService class with MongoDB persistence and organization scoping
+  - Add structured audit log entry creation with before/after state capture
+  - Include OpenTelemetry trace ID correlation for observability
+  - Add request context extraction (IP, user agent, session ID)
   - Commit changes: `git commit -m "feat: implement audit service for action logging"`
-  - _Requirements: 9.1, 9.5_
+  - _Requirements: 9.1, 9.5, 10.4_
 
 - [ ] 7.3 Integrate audit logging with all state-changing operations
-  - Add audit logging to notification approval/denial
-  - Include before/after state capture
-  - Add request context (IP, user agent) to audit entries
+  - Add audit logging to notification approval/denial workflows
+  - Include audit logging in user and organization management
+  - Add audit logging to authentication events (login, logout, token refresh)
+  - Create audit logging middleware for automatic tracking
   - Commit changes: `git commit -m "feat: integrate audit logging with state changes"`
-  - _Requirements: 5.4, 6.2, 9.1_
+  - _Requirements: 5.4, 6.2, 9.1, 2.1_
 
 - [ ] 7.4 Create audit log query and export endpoints
-  - Implement GET /api/audit-logs with filtering and pagination
-  - Add audit log export functionality (CSV/JSON)
+  - Implement GET /api/audit-logs with filtering, pagination, and HAL format
+  - Add audit log export functionality (CSV/JSON) with streaming
   - Include organization scoping and permission checks
+  - Add audit log detail endpoint with trace correlation links
   - Commit changes: `git commit -m "feat: add audit log query and export endpoints"`
-  - _Requirements: 9.2, 9.3, 9.4_
+  - _Requirements: 9.2, 9.3, 9.4, 7.1_
 
-- [ ]* 7.5 Write integration tests for audit logging
+- [ ] 7.5 Write integration tests for audit logging
   - Test audit log creation for all tracked actions
-  - Test audit log querying with various filters
-  - Test audit log export functionality
+  - Test audit log querying with various filters and pagination
+  - Test audit log export functionality and formats
+  - Test trace correlation and observability integration
   - Commit changes: `git commit -m "test: add integration tests for audit logging"`
   - _Requirements: 9.1, 9.2, 9.4_
 
@@ -260,301 +292,307 @@
   - Delete feature branch: `git branch -d feat/audit-logging`
   - _Requirements: 24.1_
 
-- [ ] 8. Add OpenTelemetry observability
-- [ ] 8.1 Create feature branch for observability
-  - Create feature branch: `git checkout -b feat/observability`
-  - Pull latest changes from main: `git pull origin main`
-  - _Requirements: 24.1_
-
-- [ ] 8.2 Set up OpenTelemetry instrumentation
-  - Configure OpenTelemetry SDK with auto-instrumentation for Flask
-  - Add manual instrumentation for business logic spans
-  - Set up trace and metric exporters for development and production
-  - Commit changes: `git commit -m "feat: set up OpenTelemetry instrumentation"`
-  - _Requirements: 10.1, 10.2, 10.6_
-
-- [ ] 8.3 Add custom spans for business operations
-  - Create spans for notification approval/denial with relevant attributes
-  - Add spans for AMQP publishing and database operations
-  - Include user context and organization ID in span attributes
-  - Commit changes: `git commit -m "feat: add custom spans for business operations"`
-  - _Requirements: 10.3, 10.4_
-
-- [ ] 8.4 Configure structured logging with trace correlation
-  - Set up JSON logging with trace_id and span_id correlation
-  - Add log correlation for audit entries
-  - Configure log levels and PII scrubbing
-  - Commit changes: `git commit -m "feat: configure structured logging with trace correlation"`
-  - _Requirements: 9.5, 10.4_
-
-- [ ] 8.5 Write tests for observability instrumentation
-  - Test trace generation and span creation
-  - Test log correlation with trace IDs
-  - Test metric collection and export
-  - Commit changes: `git commit -m "test: add tests for observability instrumentation"`
-  - _Requirements: 10.1, 10.2, 10.4_
-
-- [ ] 8.6 Merge observability implementation
-  - Create pull request for observability feature
-  - Review and merge to main branch
-  - Delete feature branch: `git branch -d feat/observability`
-  - _Requirements: 24.1_- [ 
-] 9. Implement management endpoints for entities
-- [ ] 9.1 Create feature branch for entity management
+- [ ] 8. Implement management endpoints for entities
+- [ ] 8.1 Create feature branch for entity management
   - Create feature branch: `git checkout -b feat/entity-management`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 9.2 Create organization management endpoints
-  - Implement CRUD operations for organizations
-  - Add organization slug validation and uniqueness
-  - Include soft delete functionality
-  - Commit changes: `git commit -m "feat: implement organization management endpoints"`
-  - _Requirements: 1.1, 1.3_
+- [ ] 8.2 Create authentication endpoints
+  - Implement POST /api/auth/login with email/password validation
+  - Add POST /api/auth/refresh for token refresh
+  - Add POST /api/auth/logout with token revocation
+  - Include rate limiting and security logging
+  - Commit changes: `git commit -m "feat: implement authentication endpoints"`
+  - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 9.3 Create user and role management endpoints
-  - Implement user CRUD with role assignment
+- [ ] 8.3 Create organization management endpoints
+  - Implement CRUD operations for organizations with HAL responses
+  - Add organization slug validation and uniqueness checking
+  - Include soft delete functionality and audit logging
+  - Add organization settings management
+  - Commit changes: `git commit -m "feat: implement organization management endpoints"`
+  - _Requirements: 1.1, 1.3, 9.1_
+
+- [ ] 8.4 Create user and role management endpoints
+  - Implement user CRUD with role assignment and HAL affordances
   - Add role and permission management endpoints
   - Include password change and user activation functionality
+  - Add user search and filtering capabilities
   - Commit changes: `git commit -m "feat: add user and role management endpoints"`
-  - _Requirements: 2.5, 16.1, 16.2_
+  - _Requirements: 2.5, 16.1, 16.2, 7.3_
 
-- [ ] 9.4 Create notification target and category management
+- [ ] 8.5 Create notification target and category management
   - Implement hierarchical target management with parent/child relationships
   - Add category management with target associations
-  - Include endpoint configuration with data mapping
+  - Include endpoint configuration with data mapping validation
+  - Add target hierarchy expansion and validation
   - Commit changes: `git commit -m "feat: implement target and category management"`
   - _Requirements: 14.1, 14.2, 15.1, 15.2_
 
-- [ ]* 9.5 Write integration tests for management endpoints
-  - Test CRUD operations for all entity types
-  - Test hierarchical target relationships
-  - Test role and permission assignment
+- [ ] 8.6 Write integration tests for management endpoints
+  - Test CRUD operations for all entity types with HAL responses
+  - Test hierarchical target relationships and validation
+  - Test role and permission assignment workflows
+  - Test authentication flows and token management
   - Commit changes: `git commit -m "test: add integration tests for entity management"`
-  - _Requirements: 1.1, 14.1, 16.1_
+  - _Requirements: 1.1, 14.1, 16.1, 2.1_
 
-- [ ] 9.6 Merge entity management implementation
+- [ ] 8.7 Merge entity management implementation
   - Create pull request for entity management feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/entity-management`
   - _Requirements: 24.1_
 
-- [ ] 10. Create health check and system status endpoints
-- [ ] 10.1 Create feature branch for health checks
-  - Create feature branch: `git checkout -b feat/health-checks`
+- [ ] 9. Enhance health check and system status endpoints
+- [ ] 9.1 Create feature branch for enhanced health checks
+  - Create feature branch: `git checkout -b feat/enhanced-health-checks`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 10.2 Implement health check endpoint
-  - Create GET /api/healthz with HAL response format
-  - Add dependency health checks (MongoDB, Redis, LavinMQ)
-  - Include system version and environment information
-  - Commit changes: `git commit -m "feat: implement health check endpoint"`
-  - _Requirements: 23.1, 23.2, 23.4_
+- [ ] 9.2 Enhance health check endpoint with dependency monitoring
+  - Enhance existing GET /api/healthz with comprehensive dependency checks
+  - Add MongoDB, Redis, and LavinMQ connectivity testing
+  - Include system version, environment, and feature flag status
+  - Add performance metrics and response time monitoring
+  - Commit changes: `git commit -m "feat: enhance health check with dependency monitoring"`
+  - _Requirements: 23.1, 23.2, 23.4, 25.2_
 
-- [ ] 10.3 Add system status and metrics endpoints
-  - Implement basic system metrics collection
-  - Add endpoint for system configuration status
-  - Include feature flag status reporting
+- [ ] 9.3 Add system status and metrics endpoints
+  - Implement GET /api/status with detailed system information
+  - Add basic system metrics collection (memory, CPU, connections)
+  - Include configuration status and feature flag reporting
+  - Add OpenAPI spec validation status
   - Commit changes: `git commit -m "feat: add system status and metrics endpoints"`
-  - _Requirements: 23.4, 25.2, 25.3, 25.4_
+  - _Requirements: 23.4, 25.2, 25.3, 25.4, 8.1_
 
-- [ ] 10.4 Write integration tests for health and status endpoints
-  - Test health check with various dependency states
-  - Test system status reporting
-  - Test feature flag configuration
+- [ ] 9.4 Write integration tests for health and status endpoints
+  - Test health check with various dependency states (healthy/unhealthy)
+  - Test system status reporting and metrics collection
+  - Test feature flag configuration and OpenAPI validation
+  - Test performance under load
   - Commit changes: `git commit -m "test: add tests for health and status endpoints"`
-  - _Requirements: 23.1, 23.3_
+  - _Requirements: 23.1, 23.3, 8.1_
 
-- [ ] 10.5 Merge health check implementation
-  - Create pull request for health check feature
+- [ ] 9.5 Merge enhanced health check implementation
+  - Create pull request for enhanced health checks feature
   - Review and merge to main branch
-  - Delete feature branch: `git branch -d feat/health-checks`
-  - _Requirements: 24.1_- [ ] 11.
- Build Vue 3 frontend with Vuetify 3
-- [ ] 11.1 Create feature branch for frontend setup
+  - Delete feature branch: `git branch -d feat/enhanced-health-checks`
+  - _Requirements: 24.1_
+
+- [ ] 10.
+Build Vue 3 frontend with Vuetify 3
+- [ ] 10.1 Create feature branch for frontend setup
   - Create feature branch: `git checkout -b feat/frontend-setup`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 11.2 Set up Vue 3 project with Vuetify 3
-  - Initialize Vue 3 project with Vite build tool
+- [ ] 10.2 Set up Vue 3 project with Vuetify 3
+  - Initialize Vue 3 project with Vite build tool and TypeScript
   - Configure Vuetify 3 with Material Design 3 theming
   - Set up Vue Router for client-side routing
-  - Configure Pinia for state management
+  - Configure Pinia for state management with TypeScript
+  - Add ESLint and Prettier configuration
   - Commit changes: `git commit -m "feat: set up Vue 3 project with Vuetify 3"`
   - _Requirements: 17.1, 17.2, 17.3_
 
-- [ ] 11.3 Create authentication components and stores
-  - Implement login/logout components with JWT handling
-  - Create Pinia store for authentication state
-  - Add token refresh logic and automatic logout on expiration
-  - Commit changes: `git commit -m "feat: implement authentication components and stores"`
-  - _Requirements: 2.1, 2.2, 17.3_
+- [ ] 10.3 Create HAL-aware API client and authentication
+  - Implement HAL-aware HTTP client with Axios
+  - Create authentication service with JWT token management
+  - Add automatic token refresh and logout on expiration
+  - Implement Pinia store for authentication state
+  - Commit changes: `git commit -m "feat: implement HAL-aware API client and authentication"`
+  - _Requirements: 2.1, 2.2, 17.3, 7.1_
 
-- [ ] 11.4 Merge frontend setup
+- [ ] 10.4 Create core layout and navigation components
+  - Build responsive app layout with navigation drawer
+  - Implement authentication-aware navigation menu
+  - Add user profile dropdown and logout functionality
+  - Create loading states and error handling components
+  - Commit changes: `git commit -m "feat: create core layout and navigation components"`
+  - _Requirements: 17.1, 17.4_
+
+- [ ] 10.5 Merge frontend setup
   - Create pull request for frontend setup
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/frontend-setup`
   - _Requirements: 24.1_
 
-- [ ] 11.5 Create feature branch for notification interface
+- [ ] 10.6 Create feature branch for notification interface
   - Create feature branch: `git checkout -b feat/notification-interface`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 11.6 Build notification management interface
+- [ ] 10.7 Build notification management interface
   - Create notification list component with data table, filtering, and pagination
   - Implement notification detail view with approve/deny actions
   - Add HAL-aware action buttons based on available affordances
+  - Create notification search and filtering components
   - Commit changes: `git commit -m "feat: build notification management interface"`
   - _Requirements: 4.1, 4.2, 7.4, 17.4, 17.5_
 
-- [ ] 11.7 Create admin interface for entity management
+- [ ] 10.8 Create admin interface for entity management
   - Build organization, user, and role management screens
   - Implement target hierarchy management with tree view
   - Add category and endpoint configuration interfaces
+  - Create user role assignment and permission management
   - Commit changes: `git commit -m "feat: create admin interface for entity management"`
   - _Requirements: 1.1, 16.1, 14.1, 15.1_
 
-- [ ] 11.8 Implement audit log viewer
-  - Create audit log list with advanced filtering
-  - Add audit log export functionality
+- [ ] 10.9 Implement audit log viewer
+  - Create audit log list with advanced filtering and search
+  - Add audit log export functionality with format selection
   - Include trace ID linking for observability correlation
+  - Add audit log detail view with before/after comparison
   - Commit changes: `git commit -m "feat: implement audit log viewer"`
-  - _Requirements: 9.2, 9.3, 9.4_
+  - _Requirements: 9.2, 9.3, 9.4, 10.4_
 
-- [ ]* 11.9 Write frontend unit tests
-  - Test Vue components with Vue Test Utils
+- [ ] 10.10 Write frontend unit tests
+  - Test Vue components with Vue Test Utils and TypeScript
   - Test Pinia store actions and mutations
   - Test HAL response handling and action rendering
+  - Test authentication flows and token management
   - Commit changes: `git commit -m "test: add frontend unit tests"`
-  - _Requirements: 17.1, 17.5_
+  - _Requirements: 17.1, 17.5, 7.1_
 
-- [ ] 11.10 Merge notification interface implementation
+- [ ] 10.11 Merge notification interface implementation
   - Create pull request for notification interface feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/notification-interface`
   - _Requirements: 24.1_
 
-- [ ] 12. Configure CI/CD pipeline
-- [ ] 12.1 Create feature branch for CI/CD setup
+- [ ] 11. Configure CI/CD pipeline and deployment
+- [ ] 11.1 Create feature branch for CI/CD setup
   - Create feature branch: `git checkout -b feat/cicd-pipeline`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 12.2 Set up GitHub Actions workflows
+- [ ] 11.2 Set up GitHub Actions workflows
   - Create workflow for OpenAPI validation using Redocly CLI
   - Add Codium PR-Agent for AI-powered code review
   - Configure Gitleaks for secrets scanning
   - Set up Dependabot for dependency updates
+  - Add conventional commit validation
   - Commit changes: `git commit -m "feat: set up GitHub Actions workflows"`
-  - _Requirements: 20.1, 20.2, 20.3, 20.4_
+  - _Requirements: 20.1, 20.2, 20.3, 20.4, 24.1_
 
-- [ ] 12.3 Add automated testing in CI
+- [ ] 11.3 Add automated testing in CI
   - Configure pytest for backend tests with coverage reporting
   - Add Vitest for frontend unit tests
   - Include integration tests with test database
+  - Add end-to-end testing with Playwright
   - Commit changes: `git commit -m "feat: add automated testing in CI pipeline"`
   - _Requirements: 20.5_
 
-- [ ] 12.4 Configure deployment to Vercel
-  - Set up Vercel deployment from GitHub
-  - Configure environment variables and secrets
+- [ ] 11.4 Configure Vercel deployment
+  - Set up Vercel deployment configuration with vercel.json
+  - Configure environment variables and secrets management
   - Add preview deployments for pull requests
+  - Set up production deployment from main branch
   - Commit changes: `git commit -m "feat: configure Vercel deployment"`
   - _Requirements: 18.1, 18.4, 20.5_
 
-- [ ] 12.5 Write deployment and CI tests
+- [ ] 11.5 Write deployment and CI tests
   - Test Vercel deployment configuration
   - Test environment variable handling
-  - Test CI pipeline execution
+  - Test CI pipeline execution and validation
+  - Test automated deployment workflows
   - Commit changes: `git commit -m "test: add deployment and CI tests"`
   - _Requirements: 18.1, 20.1_
 
-- [ ] 12.6 Merge CI/CD implementation
+- [ ] 11.6 Merge CI/CD implementation
   - Create pull request for CI/CD pipeline feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/cicd-pipeline`
-  - _Requirements: 24.1_- [ ] 
-13. Add project documentation and licensing
-- [ ] 13.1 Create feature branch for documentation
-  - Create feature branch: `git checkout -b feat/documentation`
+  - _Requirements: 24.1_
+
+- [ ] 12. Finalize project documentation and licensing
+- [ ] 12.1 Create feature branch for documentation
+  - Create feature branch: `git checkout -b feat/final-documentation`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 13.2 Create project documentation
-  - Write comprehensive README with setup instructions
-  - Add API documentation with OpenAPI spec
-  - Create CONTRIBUTING.md and CODE_OF_CONDUCT.md
-  - Commit changes: `git commit -m "docs: add comprehensive project documentation"`
-  - _Requirements: 22.3, 22.4_
+- [ ] 12.2 Enhance project documentation
+  - Update comprehensive README with complete setup instructions
+  - Add API documentation with complete OpenAPI spec
+  - Create detailed CONTRIBUTING.md and CODE_OF_CONDUCT.md
+  - Add architecture decision records (ADRs) in docs/ADRs/
+  - Commit changes: `git commit -m "docs: enhance comprehensive project documentation"`
+  - _Requirements: 22.3, 22.4, 8.1_
 
-- [ ] 13.3 Configure Apache 2.0 licensing
-  - Add LICENSE file with Apache 2.0 text
-  - Include SPDX license identifiers in source files
+- [ ] 12.3 Finalize Apache 2.0 licensing compliance
+  - Verify LICENSE file with Apache 2.0 text is complete
+  - Add SPDX license identifiers to all source files
   - Verify third-party dependency license compatibility
-  - Commit changes: `git commit -m "feat: configure Apache 2.0 licensing"`
+  - Create license compliance documentation
+  - Commit changes: `git commit -m "feat: finalize Apache 2.0 licensing compliance"`
   - _Requirements: 22.1, 22.2, 22.5_
 
-- [ ] 13.4 Set up conventional commits and changelog
-  - Configure conventional commit validation
-  - Set up automated changelog generation
-  - Add release tagging and OpenAPI artifact storage
-  - Commit changes: `git commit -m "feat: set up conventional commits and changelog"`
+- [ ] 12.4 Set up release management and changelog
+  - Configure automated changelog generation from conventional commits
+  - Set up release tagging workflow
+  - Add OpenAPI artifact storage for versioned releases
+  - Create release documentation and procedures
+  - Commit changes: `git commit -m "feat: set up release management and changelog"`
   - _Requirements: 24.1, 24.2, 24.3, 24.4_
 
-- [ ]* 13.5 Write documentation tests
-  - Test README instructions with fresh environment
-  - Validate OpenAPI spec completeness
-  - Test contribution workflow
+- [ ] 12.5 Write documentation validation tests
+  - Test README instructions with fresh environment setup
+  - Validate OpenAPI spec completeness and accuracy
+  - Test contribution workflow and development setup
+  - Validate all documentation links and references
   - Commit changes: `git commit -m "test: add documentation validation tests"`
   - _Requirements: 22.3, 8.1_
 
-- [ ] 13.6 Merge documentation implementation
-  - Create pull request for documentation feature
+- [ ] 12.6 Merge final documentation
+  - Create pull request for final documentation
   - Review and merge to main branch
-  - Delete feature branch: `git branch -d feat/documentation`
+  - Delete feature branch: `git branch -d feat/final-documentation`
   - _Requirements: 24.1_
 
-- [ ] 14. Final integration and deployment testing
-- [ ] 14.1 Create feature branch for integration testing
+- [ ] 13. Final integration and deployment testing
+- [ ] 13.1 Create feature branch for integration testing
   - Create feature branch: `git checkout -b feat/integration-testing`
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [ ] 14.2 Perform end-to-end testing
+- [ ] 13.2 Perform comprehensive end-to-end testing
   - Test complete notification workflow from webhook to dispatch
-  - Verify multi-tenant data isolation
-  - Test authentication and authorization flows
-  - Commit changes: `git commit -m "test: add end-to-end integration tests"`
-  - _Requirements: 3.1, 4.1, 5.1, 1.2_
+  - Verify multi-tenant data isolation across all endpoints
+  - Test authentication and authorization flows with various user roles
+  - Test HAL API discoverability and affordance links
+  - Commit changes: `git commit -m "test: add comprehensive end-to-end integration tests"`
+  - _Requirements: 3.1, 4.1, 5.1, 1.2, 7.1_
 
-- [ ] 14.3 Validate production deployment
-  - Deploy to Vercel production environment
-  - Test with real MongoDB Atlas and Upstash Redis
-  - Verify CloudAMQP LavinMQ integration
+- [ ] 13.3 Validate production deployment configuration
+  - Deploy to Vercel production environment with all services
+  - Test with real MongoDB Atlas and Upstash Redis connections
+  - Verify CloudAMQP LavinMQ integration and message publishing
+  - Test OpenTelemetry observability in production environment
   - Commit changes: `git commit -m "feat: validate production deployment configuration"`
-  - _Requirements: 18.1, 11.2, 12.1, 13.1_
+  - _Requirements: 18.1, 11.2, 12.1, 13.1, 10.1_
 
-- [ ] 14.4 Perform security and performance testing
-  - Run security scans and penetration testing
-  - Test API rate limiting and error handling
-  - Validate OpenTelemetry observability in production
+- [ ] 13.4 Perform security and performance validation
+  - Run security scans and basic penetration testing
+  - Test API rate limiting and error handling under load
+  - Validate audit trail completeness and integrity
+  - Test frontend performance and accessibility compliance
   - Commit changes: `git commit -m "test: add security and performance validation"`
-  - _Requirements: 10.1, 12.4_
+  - _Requirements: 10.1, 12.4, 9.1, 17.1_
 
-- [ ] 14.5 Write acceptance tests
-  - Create automated acceptance tests for all major workflows
-  - Test HAL API discoverability
-  - Validate audit trail completeness
+- [ ] 13.5 Write comprehensive acceptance tests
+  - Create automated acceptance tests for all major user workflows
+  - Test complete user journeys from login to notification management
+  - Validate business rule enforcement and data consistency
+  - Test error scenarios and recovery procedures
   - Commit changes: `git commit -m "test: add comprehensive acceptance tests"`
-  - _Requirements: 7.1, 9.1, 23.1_
+  - _Requirements: 7.1, 9.1, 23.1, 2.1_
 
-- [ ] 14.6 Merge integration testing and finalize
+- [ ] 13.6 Finalize MVP release
   - Create pull request for integration testing
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/integration-testing`
   - Tag release: `git tag -a v1.0.0 -m "Release v1.0.0: S.O.S Cidadão MVP"`
   - Push release: `git push origin v1.0.0`
-  - _Requirements: 24.1, 24.3_
+  - Deploy to production and verify all systems operational
+  - _Requirements: 24.1, 24.3, 18.1_

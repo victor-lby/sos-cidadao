@@ -376,3 +376,33 @@ class AuditLog(BaseModel):
         if v not in valid_actions:
             raise ValueError(f'Invalid action type: {v}')
         return v
+
+
+class UserContext(BaseModel):
+    """User context for request processing with authentication and authorization data."""
+    
+    user_id: str = Field(..., description="Authenticated user ID")
+    org_id: str = Field(..., description="User's organization ID")
+    email: Optional[str] = Field(None, description="User email")
+    name: Optional[str] = Field(None, description="User display name")
+    permissions: List[str] = Field(default_factory=list, description="User's effective permissions")
+    token_payload: Optional[Dict[str, Any]] = Field(None, description="Original JWT payload")
+    ip_address: Optional[str] = Field(None, description="Client IP address")
+    user_agent: Optional[str] = Field(None, description="Client user agent")
+    session_id: Optional[str] = Field(None, description="Session identifier")
+    
+    model_config = ConfigDict(
+        use_enum_values=True
+    )
+    
+    def has_permission(self, permission: str) -> bool:
+        """Check if user has a specific permission."""
+        return permission in self.permissions
+    
+    def has_any_permission(self, permissions: List[str]) -> bool:
+        """Check if user has any of the specified permissions."""
+        return any(perm in self.permissions for perm in permissions)
+    
+    def has_all_permissions(self, permissions: List[str]) -> bool:
+        """Check if user has all of the specified permissions."""
+        return all(perm in self.permissions for perm in permissions)
