@@ -1,0 +1,904 @@
+openapi: 3.0.3
+info:
+  title: S.O.S Cidadão API
+  description: |
+    S.O.S Cidadão is a public, open-source civic notification system designed for multi-tenant municipal operations. 
+    The platform enables municipal teams to receive, moderate, and broadcast critical public alerts through an auditable workflow.
+    
+    ## Features
+    - Multi-tenant architecture with organization scoping
+    - HATEOAS Level-3 APIs using HAL format
+    - JWT-based authentication with role-based permissions
+    - Comprehensive audit logging
+    - OpenTelemetry observability
+    
+    ## Authentication
+    All protected endpoints require a valid JWT token in the Authorization header:
+    ```
+    Authorization: Bearer <jwt-token>
+    ```
+    
+    ## HAL Format
+    All responses use HAL (Hypertext Application Language) format with `_links` and `_embedded` objects.
+    Content-Type is always `application/hal+json`.
+    
+    ## Error Handling
+    Errors follow RFC 7807 Problem Details format with HAL extensions.
+  version: 1.0.0
+  contact:
+    name: S.O.S Cidadão Team
+    url: https://github.com/your-org/sos-cidadao
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+servers:
+  - url: https://sos-cidadao.vercel.app/api
+    description: Production server
+  - url: https://sos-cidadao-staging.vercel.app/api
+    description: Staging server
+  - url: http://localhost:5000/api
+    description: Local development server
+
+paths:
+  /healthz:
+    get:
+      summary: Health check endpoint
+      description: Returns system health status and dependency checks
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: System is unhealthy
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/login:
+    post:
+      summary: User authentication
+      description: Authenticate user with email and password, returns JWT tokens
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      summary: Refresh JWT token
+      description: Refresh access token using refresh token
+      operationId: refreshToken
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      summary: User logout
+      description: Revoke JWT tokens and logout user
+      operationId: logout
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+        '401':
+          description: Invalid token
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications:
+    get:
+      summary: List notifications
+      description: Get paginated list of notifications with filtering options
+      operationId: listNotifications
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter by notification status
+          schema:
+            $ref: '#/components/schemas/NotificationStatus'
+        - name: severity
+          in: query
+          description: Filter by severity level (0-5)
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 5
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          description: Search in title and body
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/NotificationCollection'
+        '401':
+          description: Unauthorized
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create notification (webhook)
+      description: Create a new notification via webhook (intake endpoint)
+      operationId: createNotification
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationRequest'
+      responses:
+        '201':
+          description: Notification created successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/{id}:
+    get:
+      summary: Get notification details
+      description: Get detailed information about a specific notification
+      operationId: getNotification
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification details retrieved successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '404':
+          description: Notification not found
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/{id}/approve:
+    post:
+      summary: Approve notification
+      description: Approve a notification for dispatch to configured endpoints
+      operationId: approveNotification
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveNotificationRequest'
+      responses:
+        '200':
+          description: Notification approved successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Invalid request or notification cannot be approved
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notification not found
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/{id}/deny:
+    post:
+      summary: Deny notification
+      description: Deny a notification with a reason
+      operationId: denyNotification
+      tags:
+        - Notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Notification ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DenyNotificationRequest'
+      responses:
+        '200':
+          description: Notification denied successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Invalid request or notification cannot be denied
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notification not found
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /audit-logs:
+    get:
+      summary: List audit logs
+      description: Get paginated list of audit logs with filtering options
+      operationId: listAuditLogs
+      tags:
+        - Audit
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          description: Filter by user ID
+          schema:
+            type: string
+        - name: entity
+          in: query
+          description: Filter by entity type
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Filter by action
+          schema:
+            type: string
+        - name: startDate
+          in: query
+          description: Filter by start date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          description: Filter by end date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Audit logs retrieved successfully
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/AuditLogCollection'
+        '401':
+          description: Unauthorized
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Base HAL schemas
+    HalLinks:
+      type: object
+      properties:
+        self:
+          $ref: '#/components/schemas/HalLink'
+      additionalProperties:
+        $ref: '#/components/schemas/HalLink'
+
+    HalLink:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH]
+        type:
+          type: string
+          default: application/hal+json
+      required:
+        - href
+
+    # Authentication schemas
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@municipality.gov
+        password:
+          type: string
+          format: password
+          example: securePassword123
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (15 minutes TTL)
+        refreshToken:
+          type: string
+          description: JWT refresh token (7 days TTL)
+        user:
+          $ref: '#/components/schemas/UserInfo'
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - accessToken
+        - refreshToken
+        - user
+        - _links
+
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+      required:
+        - refreshToken
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: New JWT access token
+        refreshToken:
+          type: string
+          description: New JWT refresh token
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - accessToken
+        - refreshToken
+        - _links
+
+    LogoutResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Logout successful
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - message
+        - _links
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        organizationId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - email
+        - name
+        - organizationId
+        - permissions
+
+    # Notification schemas
+    NotificationStatus:
+      type: string
+      enum:
+        - received
+        - approved
+        - denied
+        - dispatched
+
+    CreateNotificationRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Emergency Alert - Road Closure
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: Main Street is closed due to emergency repairs. Use alternate routes.
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 5
+          example: 3
+        origin:
+          type: string
+          example: traffic-management-system
+        originalPayload:
+          type: object
+          description: Original payload from external system
+        baseTarget:
+          type: string
+          description: Base target ID for notification
+        targets:
+          type: array
+          items:
+            type: string
+          description: Target IDs for notification
+        categories:
+          type: array
+          items:
+            type: string
+          description: Category IDs for notification
+      required:
+        - title
+        - body
+        - severity
+        - origin
+
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 5
+        status:
+          $ref: '#/components/schemas/NotificationStatus'
+        origin:
+          type: string
+        targets:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            type: string
+        denialReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedBy:
+          type: string
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - id
+        - title
+        - body
+        - severity
+        - status
+        - origin
+        - createdAt
+        - updatedAt
+        - _links
+
+    NotificationCollection:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of notifications
+        page:
+          type: integer
+          description: Current page number
+        pageSize:
+          type: integer
+          description: Number of items per page
+        _embedded:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationResponse'
+          required:
+            - items
+        _links:
+          allOf:
+            - $ref: '#/components/schemas/HalLinks'
+            - type: object
+              properties:
+                first:
+                  $ref: '#/components/schemas/HalLink'
+                last:
+                  $ref: '#/components/schemas/HalLink'
+                next:
+                  $ref: '#/components/schemas/HalLink'
+                prev:
+                  $ref: '#/components/schemas/HalLink'
+      required:
+        - total
+        - page
+        - pageSize
+        - _embedded
+        - _links
+
+    ApproveNotificationRequest:
+      type: object
+      properties:
+        targets:
+          type: array
+          items:
+            type: string
+          description: Target IDs for notification dispatch
+        categories:
+          type: array
+          items:
+            type: string
+          description: Category IDs for notification dispatch
+      required:
+        - targets
+        - categories
+
+    DenyNotificationRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: Notification content violates community guidelines
+      required:
+        - reason
+
+    # Audit schemas
+    AuditLogResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        userId:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+        action:
+          type: string
+        before:
+          type: object
+          nullable: true
+        after:
+          type: object
+          nullable: true
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        traceId:
+          type: string
+          nullable: true
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - id
+        - timestamp
+        - userId
+        - entity
+        - action
+        - ipAddress
+        - _links
+
+    AuditLogCollection:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        _embedded:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/AuditLogResponse'
+          required:
+            - items
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - total
+        - page
+        - pageSize
+        - _embedded
+        - _links
+
+    # System schemas
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        version:
+          type: string
+        environment:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        dependencies:
+          type: object
+          properties:
+            mongodb:
+              $ref: '#/components/schemas/DependencyStatus'
+            redis:
+              $ref: '#/components/schemas/DependencyStatus'
+            amqp:
+              $ref: '#/components/schemas/DependencyStatus'
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - status
+        - version
+        - environment
+        - timestamp
+        - dependencies
+        - _links
+
+    DependencyStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        responseTime:
+          type: number
+          description: Response time in milliseconds
+        error:
+          type: string
+          nullable: true
+      required:
+        - status
+
+    # Error schemas
+    ErrorResponse:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          example: https://api.sos-cidadao.org/problems/validation-error
+        title:
+          type: string
+          example: Validation Error
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          example: The request body contains invalid data
+        instance:
+          type: string
+          format: uri
+          example: /api/notifications/123
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+        _links:
+          $ref: '#/components/schemas/HalLinks'
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - _links
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Authentication
+    description: User authentication and token management
+  - name: Notifications
+    description: Notification management and workflow
+  - name: Audit
+    description: Audit log access and export
