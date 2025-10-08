@@ -1,0 +1,120 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if tests fail'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.force_deploy }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run backend tests
+      uses: ./.github/workflows/test-backend.yml
+      
+    - name: Run frontend tests
+      uses: ./.github/workflows/test-frontend.yml
+      
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: always() && (needs.test.result == 'success' || inputs.force_deploy)
+    
+    environment:
+      name: production
+      url: https://sos-cidadao.vercel.app
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+        
+    - name: Install Vercel CLI
+      run: npm install -g vercel@latest
+      
+    - name: Pull Vercel Environment Information
+      run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: Build Project Artifacts
+      run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: Deploy Project Artifacts to Vercel
+      id: deploy
+      run: |
+        DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+        echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+        
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 30
+        
+    - name: Run smoke tests
+      run: |
+        # Test health endpoint
+        curl -f ${{ steps.deploy.outputs.deployment_url }}/api/healthz
+        
+        # Test frontend loads
+        curl -f ${{ steps.deploy.outputs.deployment_url }}/
+        
+    - name: Update deployment status
+      if: success()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id,
+            state: 'success',
+            environment_url: '${{ steps.deploy.outputs.deployment_url }}',
+            description: 'Deployment successful'
+          });
+          
+    - name: Notify deployment failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id,
+            state: 'failure',
+            description: 'Deployment failed'
+          });
+          
+    - name: Create release
+      if: success() && github.ref == 'refs/heads/main'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ github.run_number }}
+        release_name: Release v${{ github.run_number }}
+        body: |
+          Automated release from main branch
+          
+          Deployment URL: ${{ steps.deploy.outputs.deployment_url }}
+          
+          Changes in this release:
+          ${{ github.event.head_commit.message }}
+        draft: false
+        prerelease: false

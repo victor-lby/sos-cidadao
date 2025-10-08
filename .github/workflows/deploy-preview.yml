@@ -1,0 +1,113 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.deployment_url }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+        
+    - name: Install Vercel CLI
+      run: npm install -g vercel@latest
+      
+    - name: Pull Vercel Environment Information
+      run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: Build Project Artifacts
+      run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+      
+    - name: Deploy Project Artifacts to Vercel
+      id: deploy
+      run: |
+        DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+        echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+        
+    - name: Wait for deployment
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 30
+        
+    - name: Run preview smoke tests
+      run: |
+        # Test health endpoint
+        curl -f ${{ steps.deploy.outputs.deployment_url }}/api/healthz
+        
+        # Test frontend loads
+        curl -f ${{ steps.deploy.outputs.deployment_url }}/
+        
+    - name: Comment PR with preview URL
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const deploymentUrl = '${{ steps.deploy.outputs.deployment_url }}';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `🚀 **Preview Deployment Ready!**
+            
+            **Preview URL:** ${deploymentUrl}
+            
+            **Test the following:**
+            - 🏥 [Health Check](${deploymentUrl}/api/healthz)
+            - 📋 [API Documentation](${deploymentUrl}/api/docs) (if enabled)
+            - 🖥️ [Frontend Application](${deploymentUrl}/)
+            
+            **Test Credentials:**
+            - Email: \`operator@test-municipality.gov\`
+            - Password: \`testpassword123\`
+            
+            This preview will be automatically updated when you push new commits to this PR.`
+          });
+          
+    - name: Update deployment status
+      if: success()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id,
+            state: 'success',
+            environment_url: '${{ steps.deploy.outputs.deployment_url }}',
+            description: 'Preview deployment successful'
+          });
+          
+    - name: Notify deployment failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: context.payload.deployment?.id,
+            state: 'failure',
+            description: 'Preview deployment failed'
+          });
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '❌ **Preview Deployment Failed**\n\nPlease check the Actions tab for details and fix any issues.'
+          });
