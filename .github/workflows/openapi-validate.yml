@@ -1,0 +1,75 @@
+name: OpenAPI Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'api/specs/**'
+      - 'api/models/**'
+      - 'api/routes/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'api/specs/**'
+      - 'api/models/**'
+      - 'api/routes/**'
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'frontend/package-lock.json'
+        
+    - name: Install Redocly CLI
+      run: npm install -g @redocly/cli
+      
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Python dependencies
+      run: |
+        cd api
+        pip install -r requirements.txt
+        
+    - name: Generate OpenAPI spec
+      run: |
+        cd api
+        python -c "
+        from app import create_app
+        import json
+        app = create_app()
+        with app.app_context():
+            spec = app.api.api_doc
+            with open('specs/openapi.json', 'w') as f:
+                json.dump(spec, f, indent=2)
+        "
+        
+    - name: Validate OpenAPI specification
+      run: |
+        cd api
+        redocly lint specs/openapi.json --config .redocly.yaml
+        
+    - name: Bundle OpenAPI spec
+      run: |
+        cd api
+        redocly bundle specs/openapi.json --output specs/openapi-bundled.json
+        
+    - name: Upload OpenAPI artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: openapi-specs
+        path: |
+          api/specs/openapi.json
+          api/specs/openapi-bundled.json
+        retention-days: 30

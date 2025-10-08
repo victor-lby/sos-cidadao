@@ -1,13 +1,41 @@
 {
+  "version": 2,
+  "name": "sos-cidadao-platform",
   "functions": {
     "api/**/*.py": {
-      "runtime": "python3.11"
+      "runtime": "python3.11",
+      "maxDuration": 30
     }
   },
   "routes": [
     {
+      "src": "/api/healthz",
+      "dest": "/api/routes/health.py",
+      "methods": ["GET"]
+    },
+    {
+      "src": "/api/auth/(.*)",
+      "dest": "/api/routes/auth.py",
+      "methods": ["GET", "POST"]
+    },
+    {
+      "src": "/api/notifications/(.*)",
+      "dest": "/api/routes/notifications.py",
+      "methods": ["GET", "POST", "PUT", "DELETE"]
+    },
+    {
+      "src": "/api/organizations/(.*)",
+      "dest": "/api/routes/organizations.py",
+      "methods": ["GET", "POST", "PUT", "DELETE"]
+    },
+    {
+      "src": "/api/audit-logs/(.*)",
+      "dest": "/api/routes/audit.py",
+      "methods": ["GET"]
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/app.py"
     },
     {
       "src": "/(.*)",
@@ -23,15 +51,21 @@
     "JWT_PUBLIC_KEY": "@jwt-public-key",
     "AMQP_URL": "@amqp-url",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "@otel-endpoint",
+    "OTEL_API_KEY": "@otel-api-key",
     "DOCS_ENABLED": "false",
     "OTEL_ENABLED": "true",
-    "HAL_STRICT": "true"
+    "HAL_STRICT": "true",
+    "SERVICE_VERSION": "@service-version"
   },
   "build": {
     "env": {
-      "ENVIRONMENT": "production"
+      "ENVIRONMENT": "production",
+      "NODE_VERSION": "18.x"
     }
   },
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "outputDirectory": "frontend/dist",
+  "installCommand": "cd api && pip install -r requirements.txt && cd ../frontend && npm ci",
   "headers": [
     {
       "source": "/api/(.*)",
@@ -39,8 +73,77 @@
         {
           "key": "Content-Type",
           "value": "application/hal+json"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.sos-cidadao.org"
         }
       ]
     }
-  ]
+  ],
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/api/docs",
+      "permanent": false
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "/api/openapi.json",
+      "permanent": false
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/docs",
+      "destination": "/api/app.py"
+    },
+    {
+      "source": "/api/redoc",
+      "destination": "/api/app.py"
+    },
+    {
+      "source": "/api/openapi.json",
+      "destination": "/api/app.py"
+    }
+  ],
+  "regions": ["iad1"],
+  "framework": null
 }

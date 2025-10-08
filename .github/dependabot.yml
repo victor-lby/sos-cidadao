@@ -1,0 +1,95 @@
+version: 2
+updates:
+  # Python dependencies (backend)
+  - package-ecosystem: "pip"
+    directory: "/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "maintainers"
+    assignees:
+      - "maintainers"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "backend"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    ignore:
+      # Ignore major version updates for stable dependencies
+      - dependency-name: "flask"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "pymongo"
+        update-types: ["version-update:semver-major"]
+
+  # Node.js dependencies (frontend)
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "maintainers"
+    assignees:
+      - "maintainers"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "frontend"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    ignore:
+      # Ignore major version updates for Vue ecosystem
+      - dependency-name: "vue"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vuetify"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "maintainers"
+    assignees:
+      - "maintainers"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/infra/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "maintainers"
+    assignees:
+      - "maintainers"
+    commit-message:
+      prefix: "chore(docker)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "infrastructure"

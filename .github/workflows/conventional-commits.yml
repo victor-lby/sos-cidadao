@@ -1,0 +1,110 @@
+name: Conventional Commits
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [opened, edited, synchronize]
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install commitlint
+      run: |
+        npm install -g @commitlint/cli @commitlint/config-conventional
+        
+    - name: Create commitlint config
+      run: |
+        cat > commitlint.config.js << 'EOF'
+        module.exports = {
+          extends: ['@commitlint/config-conventional'],
+          rules: {
+            'type-enum': [
+              2,
+              'always',
+              [
+                'feat',
+                'fix',
+                'docs',
+                'style',
+                'refactor',
+                'test',
+                'chore',
+                'perf',
+                'ci',
+                'build',
+                'revert'
+              ]
+            ],
+            'scope-enum': [
+              2,
+              'always',
+              [
+                'auth',
+                'notifications',
+                'api',
+                'frontend',
+                'db',
+                'docs',
+                'infra',
+                'deps',
+                'ci',
+                'docker'
+              ]
+            ],
+            'subject-case': [2, 'always', 'lower-case'],
+            'subject-empty': [2, 'never'],
+            'subject-full-stop': [2, 'never', '.'],
+            'header-max-length': [2, 'always', 72],
+            'body-leading-blank': [2, 'always'],
+            'footer-leading-blank': [2, 'always']
+          }
+        };
+        EOF
+        
+    - name: Validate PR title
+      run: |
+        echo "${{ github.event.pull_request.title }}" | commitlint
+        
+    - name: Validate commit messages
+      run: |
+        # Get the base branch commit
+        BASE_SHA=$(git merge-base HEAD origin/main)
+        
+        # Check all commits in the PR
+        git log --format="%s" $BASE_SHA..HEAD | while read commit_msg; do
+          echo "Validating: $commit_msg"
+          echo "$commit_msg" | commitlint
+        done
+        
+    - name: Comment on PR if validation fails
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '❌ **Conventional Commits Validation Failed**\n\n' +
+                  'This PR contains commit messages that do not follow the Conventional Commits specification.\n\n' +
+                  '**Required format:** `type(scope): description`\n\n' +
+                  '**Valid types:** feat, fix, docs, style, refactor, test, chore, perf, ci, build, revert\n' +
+                  '**Valid scopes:** auth, notifications, api, frontend, db, docs, infra, deps, ci, docker\n\n' +
+                  '**Examples:**\n' +
+                  '- `feat(notifications): add approval endpoint`\n' +
+                  '- `fix(auth): resolve JWT token validation`\n' +
+                  '- `docs(api): update OpenAPI specification`\n\n' +
+                  'Please update your commit messages and PR title to follow this format.'
+          });

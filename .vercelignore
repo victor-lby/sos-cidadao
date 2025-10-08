@@ -1,0 +1,61 @@
+# Dependencies
+node_modules/
+api/venv/
+api/__pycache__/
+api/**/__pycache__/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Test files
+api/tests/
+frontend/tests/
+frontend/playwright-report/
+frontend/test-results/
+
+# Coverage reports
+api/htmlcov/
+api/coverage.xml
+frontend/coverage/
+
+# Build artifacts (except dist)
+api/build/
+frontend/node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Documentation
+docs/
+README.md
+LICENSE
+
+# Docker files
+docker-compose*.yml
+Dockerfile*
+infra/
+
+# CI/CD files
+.github/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
