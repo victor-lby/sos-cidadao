@@ -1,0 +1,307 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Check if this is a prerelease (contains alpha, beta, rc)
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            echo "is-prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            echo "Expected format: v1.2.3 or v1.2.3-alpha.1"
+            exit 1
+          fi
+
+  generate-changelog:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install conventional-changelog-cli
+        run: npm install -g conventional-changelog-cli
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog for this release
+          CHANGELOG=$(conventional-changelog -p angular -r 1)
+          
+          # Save to file for artifact
+          echo "$CHANGELOG" > release-changelog.md
+          
+          # Set output (escape newlines for GitHub Actions)
+          {
+            echo 'changelog<<EOF'
+            echo "$CHANGELOG"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG.md
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          # Create temporary file with new changelog entry
+          {
+            echo "# Changelog"
+            echo ""
+            echo "All notable changes to this project will be documented in this file."
+            echo ""
+            echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),"
+            echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)."
+            echo ""
+            echo "## [Unreleased]"
+            echo ""
+            echo "## [${VERSION#v}] - $DATE"
+            echo ""
+            cat release-changelog.md
+            echo ""
+            # Append existing changelog (skip header)
+            tail -n +8 CHANGELOG.md
+          } > CHANGELOG.tmp
+          
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-changelog
+          path: release-changelog.md
+
+  build-and-test:
+    needs: validate-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install backend dependencies
+        run: |
+          cd api
+          pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd api
+          pytest --cov=. --cov-report=xml
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Validate OpenAPI spec
+        run: |
+          npx @redocly/cli lint docs/API/openapi.yaml
+
+  create-release-artifacts:
+    needs: [validate-release, generate-changelog, build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build frontend for release
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Create OpenAPI artifact
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          mkdir -p artifacts
+          
+          # Copy OpenAPI spec with version
+          cp docs/API/openapi.yaml artifacts/openapi-${VERSION#v}.yaml
+          
+          # Update version in OpenAPI spec
+          sed -i "s/version: 1.0.0/version: ${VERSION#v}/" artifacts/openapi-${VERSION#v}.yaml
+
+      - name: Create source archive
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          
+          # Create source archive excluding unnecessary files
+          tar -czf artifacts/sos-cidadao-${VERSION#v}-source.tar.gz \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.pytest_cache' \
+            --exclude='venv' \
+            --exclude='dist' \
+            --exclude='build' \
+            .
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+
+  create-github-release:
+    needs: [validate-release, generate-changelog, create-release-artifacts]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: release-changelog
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.validate-release.outputs.version }}
+          release_name: Release ${{ needs.validate-release.outputs.version }}
+          body_path: release-changelog.md
+          draft: false
+          prerelease: ${{ needs.validate-release.outputs.is-prerelease }}
+
+      - name: Upload OpenAPI spec
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/openapi-${{ needs.validate-release.outputs.version }}.yaml
+          asset_name: openapi-${{ needs.validate-release.outputs.version }}.yaml
+          asset_content_type: application/yaml
+
+      - name: Upload source archive
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: artifacts/sos-cidadao-${{ needs.validate-release.outputs.version }}-source.tar.gz
+          asset_name: sos-cidadao-${{ needs.validate-release.outputs.version }}-source.tar.gz
+          asset_content_type: application/gzip
+
+  deploy-production:
+    needs: [validate-release, create-github-release]
+    runs-on: ubuntu-latest
+    if: ${{ needs.validate-release.outputs.is-prerelease == 'false' }}
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel Production
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
+      - name: Update deployment status
+        run: |
+          echo "✅ Production deployment completed for ${{ needs.validate-release.outputs.version }}"
+
+  notify-release:
+    needs: [validate-release, create-github-release, deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify release completion
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          IS_PRERELEASE="${{ needs.validate-release.outputs.is-prerelease }}"
+          
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            echo "🚀 Pre-release $VERSION created successfully"
+          else
+            echo "🎉 Release $VERSION created and deployed to production"
+          fi
+          
+          echo "📋 Release notes: https://github.com/${{ github.repository }}/releases/tag/$VERSION"
