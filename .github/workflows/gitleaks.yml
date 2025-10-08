@@ -1,0 +1,49 @@
+name: Gitleaks Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Run Gitleaks
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        
+    - name: Upload Gitleaks report
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: gitleaks-report
+        path: results.sarif
+        retention-days: 30
+        
+    - name: Comment on PR if secrets found
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '🚨 **Security Alert: Potential secrets detected!**\n\n' +
+                  'Gitleaks has detected potential secrets in this PR. ' +
+                  'Please review the security scan results and remove any exposed credentials.\n\n' +
+                  'Check the Actions tab for detailed results.'
+          });

@@ -1,0 +1,53 @@
+apis:
+  sos-cidadao@v1:
+    root: specs/openapi.json
+
+lint:
+  extends:
+    - recommended
+  rules:
+    # OpenAPI 3.0 specific rules
+    info-description: error
+    info-contact: warn
+    info-license: error
+    
+    # Path and operation rules
+    paths-kebab-case: error
+    operation-description: error
+    operation-operationId: error
+    operation-summary: error
+    operation-tag-defined: error
+    
+    # Parameter rules
+    parameter-description: error
+    
+    # Response rules
+    response-contains-header: off
+    response-contains-property: off
+    
+    # Schema rules
+    no-unresolved-refs: error
+    no-unused-components: warn
+    
+    # Security rules
+    operation-4xx-response: error
+    operation-success-response: error
+    
+    # HAL specific rules (custom)
+    hal-links-required: off  # Custom rule for HAL _links
+    
+  decorators:
+    remove-unused-components: on
+    
+bundle:
+  extends:
+    - recommended
+    
+preview-docs:
+  theme:
+    colors:
+      primary:
+        main: '#1976d2'
+    typography:
+      fontSize: '14px'
+      fontFamily: 'Roboto, sans-serif'
