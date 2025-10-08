@@ -366,7 +366,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "feat: add system status and metrics endpoints"`
   - _Requirements: 23.4, 25.2, 25.3, 25.4, 8.1_
 
-- [-] 9.4 Write integration tests for health and status endpoints
+- [x] 9.4 Write integration tests for health and status endpoints
   - Test health check with various dependency states (healthy/unhealthy)
   - Test system status reporting and metrics collection
   - Test feature flag configuration and OpenAPI validation
@@ -374,7 +374,7 @@ Implement notification workflow endpoints
   - Commit changes: `git commit -m "test: add tests for health and status endpoints"`
   - _Requirements: 23.1, 23.3, 8.1_
 
-- [ ] 9.5 Merge enhanced health check implementation
+- [-] 9.5 Merge enhanced health check implementation
   - Create pull request for enhanced health checks feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/enhanced-health-checks`
