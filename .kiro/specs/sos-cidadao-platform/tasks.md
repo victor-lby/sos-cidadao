@@ -404,7 +404,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: implement HAL-aware API client and authentication"`
   - _Requirements: 2.1, 2.2, 17.3, 7.1_
 
-- [-] 10.4 Create core layout and navigation components
+- [x] 10.4 Create core layout and navigation components
   - Build responsive app layout with navigation drawer
   - Implement authentication-aware navigation menu
   - Add user profile dropdown and logout functionality
@@ -412,7 +412,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: create core layout and navigation components"`
   - _Requirements: 17.1, 17.4_
 
-- [ ] 10.5 Merge frontend setup
+- [-] 10.5 Merge frontend setup
   - Create pull request for frontend setup
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/frontend-setup`
