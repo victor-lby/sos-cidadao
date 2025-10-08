@@ -70,7 +70,7 @@
   - Pull latest changes from main: `git pull origin main`
   - _Requirements: 24.1_
 
-- [-] 3.2 Create JWT authentication service
+- [x] 3.2 Create JWT authentication service
   - Implement JWT token generation, validation, and refresh logic with PyJWT
   - Add RS256 signing with public/private key pair
   - Create password hashing utilities with bcrypt
@@ -78,7 +78,7 @@
   - Commit changes: `git commit -m "feat: implement JWT authentication service"`
   - _Requirements: 2.1, 2.2, 2.6_
 
-- [ ] 3.3 Implement Redis service for token management
+- [x] 3.3 Implement Redis service for token management
   - Create RedisService class with Upstash HTTP client for serverless compatibility
   - Add JWT blocklist functionality with TTL
   - Implement user permission caching with organization scoping
@@ -86,7 +86,7 @@
   - Commit changes: `git commit -m "feat: add Redis service for token management"`
   - _Requirements: 2.3, 12.1, 12.2, 12.3_
 
-- [ ] 3.4 Create authorization domain logic
+- [x] 3.4 Create authorization domain logic
   - Implement pure functions for role-based permission aggregation
   - Add permission checking functions with organization scoping
   - Create user context building from JWT claims
@@ -102,7 +102,7 @@
   - Commit changes: `git commit -m "test: add unit tests for authentication system"`
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 3.6 Merge authentication implementation
+- [-] 3.6 Merge authentication implementation
   - Create pull request for authentication feature
   - Review and merge to main branch
   - Delete feature branch: `git branch -d feat/authentication`
