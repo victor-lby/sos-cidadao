@@ -24,7 +24,7 @@ S.O.S Cidadão is a public, open-source civic notification system designed for m
 - Python 3.11+ with Flask framework
 - flask-openapi3 for OpenAPI 3.0 + Pydantic validation
 - PyJWT for authentication
-- MongoDB Atlas for persistent storage
+- pymongo for MongoDB Atlas integration
 - Upstash Redis for caching and JWT token management
 - CloudAMQP LavinMQ for AMQP message queuing
 - OpenTelemetry for observability
@@ -111,6 +111,7 @@ S.O.S Cidadão is a public, open-source civic notification system designed for m
    - API Documentation: http://localhost:5000/docs (development only)
    - Jaeger UI: http://localhost:16686
    - LavinMQ Management: http://localhost:15672
+   - OpenTelemetry Collector: http://localhost:4317
 
 ### Environment Variables
 

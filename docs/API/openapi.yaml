@@ -48,6 +48,7 @@ paths:
       operationId: getHealth
       tags:
         - System
+      security: []  # No authentication required for health check
       responses:
         '200':
           description: System is healthy
@@ -69,6 +70,7 @@ paths:
       operationId: login
       tags:
         - Authentication
+      security: []  # No authentication required for login
       requestBody:
         required: true
         content:
@@ -96,6 +98,7 @@ paths:
       operationId: refreshToken
       tags:
         - Authentication
+      security: []  # No authentication required for refresh (uses refresh token in body)
       requestBody:
         required: true
         content:

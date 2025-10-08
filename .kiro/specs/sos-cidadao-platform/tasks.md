@@ -528,7 +528,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: finalize Apache 2.0 licensing compliance"`
   - _Requirements: 22.1, 22.2, 22.5_
 
-- [-] 12.4 Set up release management and changelog
+- [x] 12.4 Set up release management and changelog
   - Configure automated changelog generation from conventional commits
   - Set up release tagging workflow
   - Add OpenAPI artifact storage for versioned releases
@@ -536,7 +536,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: set up release management and changelog"`
   - _Requirements: 24.1, 24.2, 24.3, 24.4_
 
-- [ ] 12.5 Write documentation validation tests
+- [-] 12.5 Write documentation validation tests
   - Test README instructions with fresh environment setup
   - Validate OpenAPI spec completeness and accuracy
   - Test contribution workflow and development setup

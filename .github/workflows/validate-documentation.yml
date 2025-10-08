@@ -1,0 +1,393 @@
+name: Documentation Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.github/workflows/validate-documentation.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+      - '.github/workflows/validate-documentation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-documentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pyyaml requests
+
+      - name: Install documentation tools
+        run: |
+          npm install -g @redocly/cli
+          npm install -g markdownlint-cli
+
+      - name: Validate Markdown files
+        run: |
+          echo "Validating Markdown syntax..."
+          markdownlint README.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.md docs/ --ignore node_modules || true
+
+      - name: Validate OpenAPI specification
+        run: |
+          echo "Validating OpenAPI specification..."
+          if [ -f "docs/API/openapi.yaml" ]; then
+            redocly lint docs/API/openapi.yaml --skip-rule=no-unused-components
+          else
+            echo "OpenAPI specification not found"
+            exit 1
+          fi
+
+      - name: Check required documentation files
+        run: |
+          echo "Checking required documentation files..."
+          
+          required_files=(
+            "README.md"
+            "CONTRIBUTING.md"
+            "CODE_OF_CONDUCT.md"
+            "CHANGELOG.md"
+            "LICENSE"
+            "docs/API/README.md"
+            "docs/API/openapi.yaml"
+            "docs/LICENSE-COMPLIANCE.md"
+            "docs/RELEASE-PROCESS.md"
+          )
+          
+          missing_files=()
+          
+          for file in "${required_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists"
+            else
+              echo "✗ $file is missing"
+              missing_files+=("$file")
+            fi
+          done
+          
+          if [ ${#missing_files[@]} -gt 0 ]; then
+            echo "Missing required files: ${missing_files[*]}"
+            exit 1
+          fi
+
+      - name: Validate ADR documents
+        run: |
+          echo "Validating Architecture Decision Records..."
+          
+          adr_dir="docs/ADRs"
+          
+          if [ ! -d "$adr_dir" ]; then
+            echo "ADRs directory not found: $adr_dir"
+            exit 1
+          fi
+          
+          required_adrs=(
+            "ADR-001-hal-hypermedia-api.md"
+            "ADR-002-functional-programming-patterns.md"
+            "ADR-003-multi-tenant-architecture.md"
+            "ADR-004-opentelemetry-observability.md"
+          )
+          
+          for adr in "${required_adrs[@]}"; do
+            adr_path="$adr_dir/$adr"
+            if [ -f "$adr_path" ]; then
+              echo "✓ $adr exists"
+              
+              # Check ADR structure
+              required_sections=("## Status" "## Context" "## Decision" "## Consequences")
+              for section in "${required_sections[@]}"; do
+                if grep -q "$section" "$adr_path"; then
+                  echo "✓ $adr has $section section"
+                else
+                  echo "⚠ $adr missing $section section"
+                fi
+              done
+            else
+              echo "✗ $adr is missing"
+              exit 1
+            fi
+          done
+
+      - name: Validate license compliance
+        run: |
+          echo "Validating license compliance..."
+          
+          # Check LICENSE file
+          if [ -f "LICENSE" ]; then
+            if grep -q "Apache License" LICENSE && grep -q "Version 2.0" LICENSE; then
+              echo "✓ LICENSE file contains Apache 2.0 license"
+            else
+              echo "✗ LICENSE file does not contain Apache 2.0 license"
+              exit 1
+            fi
+          else
+            echo "✗ LICENSE file is missing"
+            exit 1
+          fi
+          
+          # Check SPDX identifiers in key files
+          key_files=(
+            "api/app.py"
+            "frontend/src/main.ts"
+            "scripts/release.sh"
+            "scripts/validate-docs.sh"
+          )
+          
+          for file in "${key_files[@]}"; do
+            if [ -f "$file" ]; then
+              if grep -q "SPDX-License-Identifier: Apache-2.0" "$file"; then
+                echo "✓ $file has SPDX license identifier"
+              else
+                echo "⚠ $file missing SPDX license identifier"
+              fi
+            fi
+          done
+
+      - name: Validate setup instructions
+        run: |
+          echo "Validating setup instructions..."
+          
+          # Check required files exist
+          required_files=(
+            "docker-compose.yml"
+            "api/requirements.txt"
+            "frontend/package.json"
+          )
+          
+          for file in "${required_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✓ $file exists (required for setup)"
+            else
+              echo "✗ $file is missing (required for setup)"
+              exit 1
+            fi
+          done
+          
+          # Validate Python requirements syntax
+          if [ -f "api/requirements.txt" ]; then
+            python3 -c "
+import re
+with open('api/requirements.txt') as f:
+    for line_num, line in enumerate(f, 1):
+        line = line.strip()
+        if line and not line.startswith('#'):
+            if not re.match(r'^[a-zA-Z0-9_-]+[>=<!=]*[0-9.]*', line):
+                print(f'Invalid requirement at line {line_num}: {line}')
+                exit(1)
+print('✓ Requirements syntax is valid')
+"
+          fi
+          
+          # Validate package.json syntax
+          if [ -f "frontend/package.json" ]; then
+            python3 -c "import json; json.load(open('frontend/package.json')); print('✓ package.json syntax is valid')"
+          fi
+          
+          # Validate docker-compose.yml syntax
+          if [ -f "docker-compose.yml" ]; then
+            python3 -c "import yaml; yaml.safe_load(open('docker-compose.yml')); print('✓ docker-compose.yml syntax is valid')"
+          fi
+
+      - name: Check documentation completeness
+        run: |
+          echo "Checking documentation completeness..."
+          
+          if [ -f "README.md" ]; then
+            readme_content=$(cat README.md)
+            
+            # Check for required sections
+            required_sections=(
+              "Features"
+              "Architecture"
+              "Development Setup"
+              "Testing"
+              "Deployment"
+              "API Documentation"
+              "Contributing"
+              "License"
+            )
+            
+            for section in "${required_sections[@]}"; do
+              if echo "$readme_content" | grep -qi "$section"; then
+                echo "✓ README contains $section section"
+              else
+                echo "⚠ README may be missing $section section"
+              fi
+            done
+            
+            # Check for environment variables documentation
+            env_vars=(
+              "MONGODB_URI"
+              "REDIS_URL"
+              "JWT_SECRET"
+              "AMQP_URL"
+            )
+            
+            for var in "${env_vars[@]}"; do
+              if echo "$readme_content" | grep -q "$var"; then
+                echo "✓ README documents $var"
+              else
+                echo "⚠ README may not document $var"
+              fi
+            done
+          fi
+
+      - name: Run documentation validation script
+        run: |
+          if [ -f "scripts/validate-docs.sh" ]; then
+            echo "Running documentation validation script..."
+            chmod +x scripts/validate-docs.sh
+            ./scripts/validate-docs.sh
+          else
+            echo "Documentation validation script not found"
+          fi
+
+      - name: Run documentation tests
+        run: |
+          if [ -f "tests/integration/test_documentation.py" ]; then
+            echo "Running documentation validation tests..."
+            python -m pytest tests/integration/test_documentation.py -v --tb=short
+          else
+            echo "Documentation tests not found"
+          fi
+
+      - name: Validate external links (optional)
+        continue-on-error: true
+        run: |
+          echo "Validating external links in documentation..."
+          
+          # Extract HTTP/HTTPS links from markdown files
+          find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | xargs grep -hoE 'https?://[^)]*' | sort -u > external_links.txt
+          
+          if [ -s external_links.txt ]; then
+            echo "Found external links:"
+            cat external_links.txt
+            
+            # Basic link validation (optional, may fail due to rate limiting)
+            while read -r link; do
+              if curl -s --head --request GET "$link" | grep -q "200 OK"; then
+                echo "✓ $link is accessible"
+              else
+                echo "⚠ $link may not be accessible"
+              fi
+            done < external_links.txt
+          else
+            echo "No external links found"
+          fi
+
+  validate-openapi-examples:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install OpenAPI tools
+        run: |
+          npm install -g @redocly/cli
+          npm install -g swagger-codegen-cli
+
+      - name: Validate OpenAPI examples
+        run: |
+          if [ -f "docs/API/openapi.yaml" ]; then
+            echo "Validating OpenAPI examples and schemas..."
+            
+            # Lint with strict rules
+            redocly lint docs/API/openapi.yaml
+            
+            # Try to generate client code to validate schema
+            echo "Testing code generation from OpenAPI spec..."
+            npx @openapitools/openapi-generator-cli validate -i docs/API/openapi.yaml
+            
+            echo "✓ OpenAPI specification is valid for code generation"
+          else
+            echo "OpenAPI specification not found"
+            exit 1
+          fi
+
+  check-documentation-coverage:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check API endpoint documentation coverage
+        run: |
+          echo "Checking API endpoint documentation coverage..."
+          
+          # Find Python route files
+          if [ -d "api/routes" ]; then
+            echo "Checking route files for documentation..."
+            
+            route_files=$(find api/routes -name "*.py" -type f)
+            
+            for file in $route_files; do
+              echo "Checking $file..."
+              
+              # Look for route decorators
+              routes=$(grep -n "@.*route\|@.*get\|@.*post\|@.*put\|@.*delete" "$file" || true)
+              
+              if [ -n "$routes" ]; then
+                echo "Found routes in $file:"
+                echo "$routes"
+              fi
+            done
+          fi
+          
+          # Check if OpenAPI spec covers the routes
+          if [ -f "docs/API/openapi.yaml" ]; then
+            echo "Checking OpenAPI coverage..."
+            
+            # Extract paths from OpenAPI spec
+            python3 -c "
+import yaml
+with open('docs/API/openapi.yaml') as f:
+    spec = yaml.safe_load(f)
+    
+if 'paths' in spec:
+    print('Documented API endpoints:')
+    for path in spec['paths']:
+        print(f'  {path}')
+        for method in spec['paths'][path]:
+            print(f'    {method.upper()}')
+else:
+    print('No paths found in OpenAPI spec')
+"
+          fi
