@@ -4,6 +4,9 @@ S.O.S Cidadão API - Flask Application Entry Point
 This module initializes the Flask application with OpenAPI 3.0 support,
 configures middleware, and sets up the core infrastructure for the
 multi-tenant civic notification platform.
+
+SPDX-License-Identifier: Apache-2.0
+Copyright 2024 S.O.S Cidadão Contributors
 """
 
 import os
