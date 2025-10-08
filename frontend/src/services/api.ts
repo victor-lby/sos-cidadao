@@ -36,10 +36,10 @@ export class NotificationApi {
     const response = await halClient.get<HalCollection<Notification>>('/notifications', params)
 
     return {
-      items: response._embedded?.items || [],
-      total: response.total || 0,
-      page: response.page || 1,
-      pageSize: response.pageSize || pageSize,
+      items: (response._embedded?.items as Notification[]) || [],
+      total: (response.total as number) || 0,
+      page: (response.page as number) || 1,
+      pageSize: (response.pageSize as number) || pageSize,
       links: halClient.extractLinks(response)
     }
   }
@@ -81,7 +81,7 @@ export class NotificationApi {
       return []
     }
 
-    return halClient.extractAvailableActions(notification as HalResource)
+    return halClient.extractAvailableActions(notification as unknown as HalResource)
   }
 
   // Helper method to check if a specific action is available
@@ -118,10 +118,10 @@ export class AuditApi {
     const response = await halClient.get<HalCollection<any>>('/audit-logs', params)
 
     return {
-      items: response._embedded?.items || [],
-      total: response.total || 0,
-      page: response.page || 1,
-      pageSize: response.pageSize || pageSize,
+      items: (response._embedded?.items as any[]) || [],
+      total: (response.total as number) || 0,
+      page: (response.page as number) || 1,
+      pageSize: (response.pageSize as number) || pageSize,
       links: halClient.extractLinks(response)
     }
   }

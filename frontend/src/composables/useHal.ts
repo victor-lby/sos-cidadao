@@ -35,7 +35,7 @@ export function useHal<T extends HalResource>(resource: ComputedRef<T | null>) {
   const followLink = async <R>(
     rel: string,
     data?: Record<string, unknown>
-  ): Promise<HalResource<R> | null> => {
+  ): Promise<R & HalResource | null> => {
     if (!resource.value) return null
     return halClient.followLink<R>(resource.value, rel, data)
   }

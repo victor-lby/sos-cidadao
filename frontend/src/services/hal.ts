@@ -73,29 +73,29 @@ export class HalClient {
     }
   }
 
-  async get<T>(url: string, params?: Record<string, unknown>): Promise<HalResource<T>> {
-    const response: AxiosResponse<HalResource<T>> = await this.client.get(url, { params })
+  async get<T>(url: string, params?: Record<string, unknown>): Promise<T & HalResource> {
+    const response: AxiosResponse<T & HalResource> = await this.client.get(url, { params })
     return response.data
   }
 
   async post<T>(
     url: string,
     data?: Record<string, unknown>
-  ): Promise<HalResource<T>> {
-    const response: AxiosResponse<HalResource<T>> = await this.client.post(url, data)
+  ): Promise<T & HalResource> {
+    const response: AxiosResponse<T & HalResource> = await this.client.post(url, data)
     return response.data
   }
 
   async put<T>(
     url: string,
     data?: Record<string, unknown>
-  ): Promise<HalResource<T>> {
-    const response: AxiosResponse<HalResource<T>> = await this.client.put(url, data)
+  ): Promise<T & HalResource> {
+    const response: AxiosResponse<T & HalResource> = await this.client.put(url, data)
     return response.data
   }
 
-  async delete<T>(url: string): Promise<HalResource<T>> {
-    const response: AxiosResponse<HalResource<T>> = await this.client.delete(url)
+  async delete<T>(url: string): Promise<T & HalResource> {
+    const response: AxiosResponse<T & HalResource> = await this.client.delete(url)
     return response.data
   }
 
@@ -121,7 +121,7 @@ export class HalClient {
     resource: HalResource,
     rel: string,
     data?: Record<string, unknown>
-  ): Promise<HalResource<T> | null> {
+  ): Promise<T & HalResource | null> {
     const link = this.getLink(resource, rel)
     if (!link) {
       return null

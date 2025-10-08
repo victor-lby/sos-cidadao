@@ -396,7 +396,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: set up Vue 3 project with Vuetify 3"`
   - _Requirements: 17.1, 17.2, 17.3_
 
-- [-] 10.3 Create HAL-aware API client and authentication
+- [x] 10.3 Create HAL-aware API client and authentication
   - Implement HAL-aware HTTP client with Axios
   - Create authentication service with JWT token management
   - Add automatic token refresh and logout on expiration
@@ -404,7 +404,7 @@ Build Vue 3 frontend with Vuetify 3
   - Commit changes: `git commit -m "feat: implement HAL-aware API client and authentication"`
   - _Requirements: 2.1, 2.2, 17.3, 7.1_
 
-- [ ] 10.4 Create core layout and navigation components
+- [-] 10.4 Create core layout and navigation components
   - Build responsive app layout with navigation drawer
   - Implement authentication-aware navigation menu
   - Add user profile dropdown and logout functionality

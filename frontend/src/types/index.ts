@@ -6,7 +6,7 @@ export interface HalLink {
   title?: string
 }
 
-export interface HalResource<T = Record<string, unknown>> {
+export interface HalResource {
   _links: Record<string, HalLink>
   _embedded?: Record<string, unknown>
   [key: string]: unknown
@@ -120,6 +120,13 @@ export interface ApiError {
     message: string
   }>
   _links?: Record<string, HalLink>
+}
+
+// Application Error type for UI components
+export interface AppError {
+  message: string
+  retryable: boolean
+  originalError?: Error | ApiError
 }
 
 // User context for authentication

@@ -1,16 +1,10 @@
 import { ref, type Ref } from 'vue'
-import type { ApiError } from '@/types'
+import type { ApiError, AppError } from '@/types'
 
 interface ErrorHandlerOptions {
   successMessage?: string
   errorMessage?: string
   retryable?: boolean
-}
-
-interface AppError {
-  message: string
-  retryable: boolean
-  originalError?: Error | ApiError
 }
 
 export function useErrorHandler() {

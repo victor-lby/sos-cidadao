@@ -13,13 +13,13 @@ export class AuthService {
   private readonly USER_KEY = 'user'
 
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response = await halClient.post<LoginResponse>('/auth/login', credentials)
+    const response = await halClient.post<LoginResponse>('/auth/login', credentials as unknown as Record<string, unknown>)
     
     // Store tokens and user data
-    this.setTokens(response.accessToken, response.refreshToken)
-    this.setUser(response.user)
+    this.setTokens(response.accessToken as string, response.refreshToken as string)
+    this.setUser(response.user as User)
     
-    return response
+    return response as LoginResponse
   }
 
   async logout(): Promise<void> {
@@ -44,12 +44,12 @@ export class AuthService {
 
     try {
       const request: RefreshTokenRequest = { refreshToken }
-      const response = await halClient.post<RefreshTokenResponse>('/auth/refresh', request)
+      const response = await halClient.post<RefreshTokenResponse>('/auth/refresh', request as unknown as Record<string, unknown>)
       
       // Update stored tokens
-      this.setTokens(response.accessToken, response.refreshToken)
+      this.setTokens(response.accessToken as string, response.refreshToken as string)
       
-      return response
+      return response as RefreshTokenResponse
     } catch (error) {
       // Refresh failed - clear tokens and force re-login
       this.clearTokens()
@@ -68,8 +68,8 @@ export class AuthService {
     if (this.getAccessToken()) {
       try {
         const response = await halClient.get<User>('/auth/me')
-        this.setUser(response as User)
-        return response as User
+        this.setUser(response as unknown as User)
+        return response as unknown as User
       } catch (error) {
         // Token might be invalid
         this.clearTokens()
