@@ -84,6 +84,10 @@ auth_service = AuthService(
     app.config['JWT_REFRESH_TOKEN_EXPIRES']
 )
 
+# Initialize AMQP service
+from services.amqp import create_amqp_service
+amqp_service = create_amqp_service()
+
 # Initialize middleware
 hal_formatter = create_hal_formatter(app.config['BASE_URL'])
 validation_middleware = ValidationMiddleware(app.config['BASE_URL'])
@@ -104,6 +108,7 @@ register_custom_error_handlers(app, hal_formatter)
 app.mongodb_service = mongodb_service
 app.redis_service = redis_service
 app.auth_service = auth_service
+app.amqp_service = amqp_service
 app.hal_formatter = hal_formatter
 app.validation_middleware = validation_middleware
 app.auth_middleware = auth_middleware
@@ -127,7 +132,7 @@ def health_check():
         "dependencies": {
             "mongodb": {"status": "healthy"},  # Will be enhanced in later tasks
             "redis": {"status": "healthy"},
-            "amqp": {"status": "healthy"}
+            "amqp": {"status": "healthy" if amqp_service.health_check() else "unhealthy"}
         }
     }
     

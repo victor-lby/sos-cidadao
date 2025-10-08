@@ -12,6 +12,7 @@ from flask_openapi3 import APIBlueprint, Tag
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 import logging
+import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from functools import wraps
@@ -785,28 +786,107 @@ def approve_notification(notification_id: str):
                         request.url
                     )), 500
             
-            # TODO: Integrate with AMQP publishing (placeholder for now)
-            # This will be implemented in task 6 (AMQP message publishing)
+            # Publish notification to AMQP for dispatch
+            publish_success = False
+            publish_errors = []
+            
             with tracer.start_as_current_span("amqp.notification.publish") as amqp_span:
                 amqp_span.set_attributes({
                     "amqp.operation": "publish_notification",
-                    "amqp.status": "placeholder",
                     "notification.id": notification_id,
                     "targets.count": len(approve_request.target_ids),
                     "categories.count": len(approve_request.category_ids)
                 })
                 
-                logger.info(
-                    "AMQP publishing placeholder - notification approved",
-                    extra={
-                        "notification_id": notification_id,
-                        "user_id": user_context.user_id,
-                        "org_id": user_context.org_id,
-                        "target_ids": approve_request.target_ids,
-                        "category_ids": approve_request.category_ids,
-                        "note": "AMQP integration will be implemented in task 6"
-                    }
-                )
+                try:
+                    # Get endpoints for selected categories
+                    endpoints = _get_endpoints_for_categories(
+                        approve_request.category_ids, 
+                        user_context.org_id
+                    )
+                    
+                    if not endpoints:
+                        logger.warning(
+                            "No endpoints configured for selected categories",
+                            extra={
+                                "notification_id": notification_id,
+                                "category_ids": approve_request.category_ids,
+                                "org_id": user_context.org_id
+                            }
+                        )
+                        # Continue without publishing - this is not a fatal error
+                        publish_success = True
+                    else:
+                        # Publish to each endpoint
+                        publish_results = _publish_to_endpoints(
+                            result.notification,
+                            endpoints,
+                            user_context
+                        )
+                        
+                        # Check results
+                        successful_publishes = [r for r in publish_results if r.success]
+                        failed_publishes = [r for r in publish_results if not r.success]
+                        
+                        if successful_publishes:
+                            publish_success = True
+                            
+                            # Update notification status to dispatched if all succeeded
+                            if not failed_publishes:
+                                _update_notification_status_to_dispatched(
+                                    notification_id,
+                                    user_context.org_id,
+                                    user_context.user_id
+                                )
+                        
+                        if failed_publishes:
+                            publish_errors = [r.error for r in failed_publishes if r.error]
+                            logger.error(
+                                "Some AMQP publishes failed",
+                                extra={
+                                    "notification_id": notification_id,
+                                    "failed_count": len(failed_publishes),
+                                    "successful_count": len(successful_publishes),
+                                    "errors": publish_errors
+                                }
+                            )
+                        
+                        amqp_span.set_attributes({
+                            "amqp.endpoints_count": len(endpoints),
+                            "amqp.successful_publishes": len(successful_publishes),
+                            "amqp.failed_publishes": len(failed_publishes)
+                        })
+                        
+                        logger.info(
+                            "AMQP publishing completed",
+                            extra={
+                                "notification_id": notification_id,
+                                "user_id": user_context.user_id,
+                                "org_id": user_context.org_id,
+                                "endpoints_count": len(endpoints),
+                                "successful_publishes": len(successful_publishes),
+                                "failed_publishes": len(failed_publishes)
+                            }
+                        )
+                
+                except Exception as e:
+                    amqp_span.record_exception(e)
+                    amqp_span.set_status(Status(StatusCode.ERROR, str(e)))
+                    
+                    logger.error(
+                        "AMQP publishing failed with exception",
+                        extra={
+                            "notification_id": notification_id,
+                            "user_id": user_context.user_id,
+                            "org_id": user_context.org_id,
+                            "error": str(e)
+                        },
+                        exc_info=True
+                    )
+                    
+                    # Don't fail the approval if AMQP publishing fails
+                    # The notification is still approved, just not dispatched
+                    publish_errors.append(str(e))
             
             # Create audit log entry
             with tracer.start_as_current_span("audit.log_approval") as audit_span:
@@ -1156,3 +1236,353 @@ def deny_notification(notification_id: str):
                 "internal_error",
                 request.url
             )), 500
+
+
+# Helper functions for AMQP integration
+
+def _get_endpoints_for_categories(category_ids: List[str], org_id: str) -> List[Dict[str, Any]]:
+    """
+    Get endpoints configured for the specified categories.
+    
+    Args:
+        category_ids: List of category IDs
+        org_id: Organization ID
+        
+    Returns:
+        List of endpoint configurations
+    """
+    from flask import current_app
+    
+    try:
+        # Query endpoints that are associated with any of the selected categories
+        query = {
+            "organizationId": org_id,
+            "deletedAt": None,
+            "isActive": True,
+            "categoryIds": {"$in": category_ids}
+        }
+        
+        endpoints = current_app.mongodb_service.find_by_org(
+            "endpoints",
+            org_id,
+            query
+        )
+        
+        return endpoints
+        
+    except Exception as e:
+        logger.error(
+            "Failed to get endpoints for categories",
+            extra={
+                "category_ids": category_ids,
+                "org_id": org_id,
+                "error": str(e)
+            },
+            exc_info=True
+        )
+        return []
+
+
+def _publish_to_endpoints(
+    notification: 'Notification',
+    endpoints: List[Dict[str, Any]],
+    user_context: 'UserContext'
+) -> List['PublishResult']:
+    """
+    Publish notification to multiple endpoints with retry logic.
+    
+    Args:
+        notification: Notification to publish
+        endpoints: List of endpoint configurations
+        user_context: User context for tracing
+        
+    Returns:
+        List of publish results
+    """
+    from flask import current_app
+    from ..services.amqp import create_amqp_service, PublishResult
+    from ..models.entities import Endpoint
+    import time
+    
+    results = []
+    
+    try:
+        # Create AMQP service
+        amqp_service = create_amqp_service()
+        
+        for endpoint_doc in endpoints:
+            try:
+                # Convert to Endpoint entity
+                endpoint_data = {
+                    "id": str(endpoint_doc["_id"]),
+                    "organization_id": endpoint_doc["organizationId"],
+                    "name": endpoint_doc["name"],
+                    "description": endpoint_doc.get("description"),
+                    "url": endpoint_doc["url"],
+                    "data_mapping": endpoint_doc["dataMapping"],
+                    "category_ids": endpoint_doc.get("categoryIds", []),
+                    "headers": endpoint_doc.get("headers", {}),
+                    "timeout_seconds": endpoint_doc.get("timeoutSeconds", 30),
+                    "retry_attempts": endpoint_doc.get("retryAttempts", 3),
+                    "is_active": endpoint_doc.get("isActive", True),
+                    "created_at": endpoint_doc["createdAt"],
+                    "updated_at": endpoint_doc["updatedAt"],
+                    "deleted_at": endpoint_doc.get("deletedAt"),
+                    "created_by": endpoint_doc["createdBy"],
+                    "updated_by": endpoint_doc["updatedBy"],
+                    "schema_version": endpoint_doc.get("schemaVersion", 1)
+                }
+                
+                endpoint = Endpoint(**endpoint_data)
+                
+                # Publish to this endpoint with retry logic
+                result = _publish_to_endpoint_with_retry(
+                    amqp_service,
+                    notification,
+                    endpoint,
+                    max_retries=endpoint.retry_attempts
+                )
+                
+                results.append(result)
+                    
+            except Exception as e:
+                logger.error(
+                    "Failed to publish to endpoint",
+                    extra={
+                        "endpoint_id": endpoint_doc.get("_id"),
+                        "endpoint_name": endpoint_doc.get("name"),
+                        "notification_id": notification.id,
+                        "error": str(e)
+                    },
+                    exc_info=True
+                )
+                
+                # Create failed result
+                results.append(PublishResult(
+                    success=False,
+                    correlation_id=notification.correlation_id or str(uuid.uuid4()),
+                    exchange="unknown",
+                    routing_key="unknown",
+                    error=str(e)
+                ))
+        
+    except Exception as e:
+        logger.error(
+            "Failed to create AMQP service or process endpoints",
+            extra={
+                "notification_id": notification.id,
+                "endpoints_count": len(endpoints),
+                "error": str(e)
+            },
+            exc_info=True
+        )
+        
+        # Return failed results for all endpoints
+        for endpoint_doc in endpoints:
+            results.append(PublishResult(
+                success=False,
+                correlation_id=notification.correlation_id or str(uuid.uuid4()),
+                exchange="unknown",
+                routing_key="unknown",
+                error=f"AMQP service error: {str(e)}"
+            ))
+    
+    return results
+
+
+def _publish_to_endpoint_with_retry(
+    amqp_service,
+    notification: 'Notification',
+    endpoint: 'Endpoint',
+    max_retries: int = 3
+) -> 'PublishResult':
+    """
+    Publish to a single endpoint with exponential backoff retry logic.
+    
+    Args:
+        amqp_service: AMQP service instance
+        notification: Notification to publish
+        endpoint: Endpoint configuration
+        max_retries: Maximum number of retry attempts
+        
+    Returns:
+        PublishResult: Final result after retries
+    """
+    import time
+    from ..services.amqp import PublishResult
+    
+    last_result = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            with tracer.start_as_current_span("amqp.publish_to_endpoint") as span:
+                span.set_attributes({
+                    "endpoint.id": endpoint.id,
+                    "endpoint.name": endpoint.name,
+                    "notification.id": notification.id,
+                    "attempt": attempt + 1,
+                    "max_retries": max_retries
+                })
+                
+                result = amqp_service.publish_notification(
+                    notification=notification,
+                    endpoint=endpoint,
+                    correlation_id=notification.correlation_id
+                )
+                
+                span.set_attributes({
+                    "publish.success": result.success,
+                    "publish.correlation_id": result.correlation_id,
+                    "publish.retry_count": result.retry_count
+                })
+                
+                if result.success:
+                    logger.info(
+                        "Successfully published to endpoint",
+                        extra={
+                            "endpoint_id": endpoint.id,
+                            "endpoint_name": endpoint.name,
+                            "notification_id": notification.id,
+                            "attempt": attempt + 1,
+                            "correlation_id": result.correlation_id
+                        }
+                    )
+                    return result
+                else:
+                    span.set_status(Status(StatusCode.ERROR, result.error or "Unknown error"))
+                    last_result = result
+                    
+                    if attempt < max_retries:
+                        # Exponential backoff with jitter
+                        delay = (2 ** attempt) + (time.time() % 1)
+                        
+                        logger.warning(
+                            "Publish failed, retrying",
+                            extra={
+                                "endpoint_id": endpoint.id,
+                                "endpoint_name": endpoint.name,
+                                "notification_id": notification.id,
+                                "attempt": attempt + 1,
+                                "max_retries": max_retries,
+                                "retry_delay": delay,
+                                "error": result.error
+                            }
+                        )
+                        
+                        time.sleep(delay)
+                    else:
+                        logger.error(
+                            "Publish failed after all retries",
+                            extra={
+                                "endpoint_id": endpoint.id,
+                                "endpoint_name": endpoint.name,
+                                "notification_id": notification.id,
+                                "total_attempts": attempt + 1,
+                                "error": result.error
+                            }
+                        )
+                
+        except Exception as e:
+            logger.error(
+                "Exception during publish attempt",
+                extra={
+                    "endpoint_id": endpoint.id,
+                    "endpoint_name": endpoint.name,
+                    "notification_id": notification.id,
+                    "attempt": attempt + 1,
+                    "error": str(e)
+                },
+                exc_info=True
+            )
+            
+            # Create error result
+            last_result = PublishResult(
+                success=False,
+                correlation_id=notification.correlation_id or str(uuid.uuid4()),
+                exchange="unknown",
+                routing_key="unknown",
+                error=str(e),
+                retry_count=attempt
+            )
+            
+            if attempt < max_retries:
+                # Exponential backoff with jitter
+                delay = (2 ** attempt) + (time.time() % 1)
+                time.sleep(delay)
+    
+    return last_result or PublishResult(
+        success=False,
+        correlation_id=notification.correlation_id or str(uuid.uuid4()),
+        exchange="unknown",
+        routing_key="unknown",
+        error="All retry attempts failed"
+    )
+
+
+def _update_notification_status_to_dispatched(
+    notification_id: str,
+    org_id: str,
+    user_id: str
+) -> bool:
+    """
+    Update notification status to dispatched.
+    
+    Args:
+        notification_id: Notification ID
+        org_id: Organization ID
+        user_id: User ID for audit
+        
+    Returns:
+        bool: True if update successful
+    """
+    from flask import current_app
+    from datetime import datetime
+    
+    try:
+        update_data = {
+            "status": "dispatched",
+            "dispatchedAt": datetime.utcnow(),
+            "updatedAt": datetime.utcnow(),
+            "updatedBy": user_id
+        }
+        
+        success = current_app.mongodb_service.update_by_org(
+            "notifications",
+            org_id,
+            notification_id,
+            update_data
+        )
+        
+        if success:
+            logger.info(
+                "Notification status updated to dispatched",
+                extra={
+                    "notification_id": notification_id,
+                    "org_id": org_id,
+                    "user_id": user_id
+                }
+            )
+        else:
+            logger.error(
+                "Failed to update notification status to dispatched",
+                extra={
+                    "notification_id": notification_id,
+                    "org_id": org_id,
+                    "user_id": user_id
+                }
+            )
+        
+        return success
+        
+    except Exception as e:
+        logger.error(
+            "Exception updating notification status to dispatched",
+            extra={
+                "notification_id": notification_id,
+                "org_id": org_id,
+                "user_id": user_id,
+                "error": str(e)
+            },
+            exc_info=True
+        )
+        return False
