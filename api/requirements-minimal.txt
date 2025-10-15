@@ -13,7 +13,7 @@ bcrypt==4.1.2
 cryptography>=41.0.0
 
 # Database and caching
-pymongo==4.6.1
+pymongo==4.15.3
 redis==5.0.1
 
 # Message queue
