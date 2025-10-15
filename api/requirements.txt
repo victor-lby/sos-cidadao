@@ -9,7 +9,7 @@ pydantic[email]==2.5.2
 
 # Authentication and security
 PyJWT==2.8.0
-Flask-JWT-Extended==4.6.0
+Flask-JWT-Extended==4.7.1
 bcrypt==4.1.2
 cryptography>=41.0.0
 
