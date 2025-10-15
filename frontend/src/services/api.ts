@@ -91,16 +91,39 @@ export class NotificationApi {
   }
 }
 
+interface Organization {
+  id: string
+  name: string
+  type: string
+  created_at: string
+  updated_at: string
+  _links: Record<string, HalLink>
+}
+
 export class OrganizationApi {
-  async getCurrent(): Promise<any> {
+  async getCurrent(): Promise<Organization> {
     const response = await halClient.get('/organizations/current')
-    return response
+    return response as Organization
   }
 
-  async getById(id: string): Promise<any> {
+  async getById(id: string): Promise<Organization> {
     const response = await halClient.get(`/organizations/${id}`)
-    return response
+    return response as Organization
   }
+}
+
+interface AuditLogEntry {
+  id: string
+  user_id: string
+  entity: string
+  entity_id: string
+  action: string
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  timestamp: string
+  ip_address: string
+  user_agent: string
+  _links: Record<string, HalLink>
 }
 
 export class AuditApi {
@@ -108,17 +131,17 @@ export class AuditApi {
     filters: Record<string, unknown> = {},
     page: number = 1,
     pageSize: number = 20
-  ): Promise<PaginationResult<any>> {
+  ): Promise<PaginationResult<AuditLogEntry>> {
     const params: Record<string, string | number> = {
       page,
       pageSize,
       ...filters
     }
 
-    const response = await halClient.get<HalCollection<any>>('/audit-logs', params)
+    const response = await halClient.get<HalCollection<AuditLogEntry>>('/audit-logs', params)
 
     return {
-      items: (response._embedded?.items as any[]) || [],
+      items: (response._embedded?.items as AuditLogEntry[]) || [],
       total: (response.total as number) || 0,
       page: (response.page as number) || 1,
       pageSize: (response.pageSize as number) || pageSize,

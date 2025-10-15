@@ -50,7 +50,7 @@
     </v-alert>
 
     <!-- Empty State -->
-    <v-card v-if="!loading && notifications.length === 0" class="mb-4">
+    <v-card v-if="!loading && filteredNotifications.length === 0" class="mb-4">
       <v-card-text class="text-center py-12">
         <v-icon size="64" color="grey-lighten-1">mdi-bell-off</v-icon>
         <p class="text-h6 mt-4">No notifications found</p>
@@ -61,9 +61,9 @@
     </v-card>
 
     <!-- Notifications List -->
-    <div v-if="!loading && notifications.length > 0">
+    <div v-if="!loading && filteredNotifications.length > 0">
       <v-card
-        v-for="notification in notifications"
+        v-for="notification in filteredNotifications"
         :key="notification.id"
         class="mb-4"
         :class="getNotificationCardClass(notification.status)"
