@@ -7,7 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     reviewers:
       - "maintainers"
     assignees:
@@ -20,12 +20,12 @@ updates:
       - "backend"
     allow:
       - dependency-type: "direct"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
       - dependency-type: "indirect"
+        update-types: ["version-update:semver-patch"]
     ignore:
-      # Ignore major version updates for stable dependencies
-      - dependency-name: "flask"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "pymongo"
+      # Ignore major version updates for all dependencies in v1.0.x
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
   # Node.js dependencies (frontend)
@@ -35,7 +35,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     reviewers:
       - "maintainers"
     assignees:
@@ -48,12 +48,12 @@ updates:
       - "frontend"
     allow:
       - dependency-type: "direct"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
       - dependency-type: "indirect"
+        update-types: ["version-update:semver-patch"]
     ignore:
-      # Ignore major version updates for Vue ecosystem
-      - dependency-name: "vue"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "vuetify"
+      # Ignore major version updates for all dependencies in v1.0.x
+      - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
   # GitHub Actions
