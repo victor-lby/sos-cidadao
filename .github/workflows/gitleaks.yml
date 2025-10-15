@@ -27,7 +27,7 @@ jobs:
         
     - name: Upload Gitleaks report
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gitleaks-report
         path: results.sarif
