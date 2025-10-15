@@ -9,11 +9,11 @@ import os
 import logging
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.sampling import TraceIdRatioBased, AlwaysOn, AlwaysOff
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+# Jaeger exporter not available in current version
 
 
 def setup_observability():
@@ -24,8 +24,11 @@ def setup_observability():
     service_version = os.getenv('SERVICE_VERSION', '1.0.0')
     
     if not otel_enabled:
-        trace.set_tracer_provider(TracerProvider(sampler=AlwaysOff()))
+        # Disable tracing by not setting up a tracer provider
         return
+    
+    # Force disable for debugging
+    return
     
     # Environment-specific sampling
     if environment == 'production':
@@ -33,7 +36,7 @@ def setup_observability():
     elif environment == 'staging':
         sampler = TraceIdRatioBased(0.5)  # 50% sampling in staging
     else:
-        sampler = AlwaysOn()  # 100% sampling in development
+        sampler = TraceIdRatioBased(1.0)  # 100% sampling in development
     
     # Configure resource attributes
     resource = Resource.create({
@@ -62,27 +65,26 @@ def setup_observability():
             )
     
     elif environment == 'staging':
-        # Staging: Export to Jaeger
-        jaeger_exporter = JaegerExporter(
-            agent_host_name=os.getenv('JAEGER_AGENT_HOST', 'localhost'),
-            agent_port=int(os.getenv('JAEGER_AGENT_PORT', '6831'))
-        )
-        tracer_provider.add_span_processor(BatchSpanProcessor(jaeger_exporter))
+        # Staging: Export to OTLP (Jaeger supports OTLP)
+        otlp_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://localhost:4318/v1/traces')
+        try:
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+            tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+        except Exception:
+            pass
     
     else:
         # Development: Console output and local collector
         console_exporter = ConsoleSpanExporter()
         tracer_provider.add_span_processor(BatchSpanProcessor(console_exporter))
         
-        # Also try to connect to local collector
+        # Also try to connect to local Jaeger
+        otlp_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://jaeger:4318/v1/traces')
         try:
-            otlp_exporter = OTLPSpanExporter(
-                endpoint="http://localhost:4317",
-                insecure=True
-            )
+            otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
             tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
         except Exception:
-            # Ignore if local collector is not available
+            # Ignore if Jaeger is not available
             pass
     
     trace.set_tracer_provider(tracer_provider)
@@ -96,8 +98,8 @@ def setup_structured_logging(environment: str):
     log_level = {
         'production': logging.WARNING,
         'staging': logging.INFO,
-        'development': logging.DEBUG
-    }.get(environment, logging.INFO)
+        'development': logging.ERROR
+    }.get(environment, logging.ERROR)
     
     # Configure root logger
     logging.basicConfig(

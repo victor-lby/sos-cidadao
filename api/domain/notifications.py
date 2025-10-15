@@ -11,11 +11,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 import uuid
-from ..models.entities import (
+from models.entities import (
     Notification, NotificationStatus, NotificationSeverity, 
     UserContext, NotificationTarget, NotificationCategory
 )
-from ..models.enums import NotificationStatus as StatusEnum
+from models.enums import NotificationStatus as StatusEnum
 
 
 @dataclass

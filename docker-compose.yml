@@ -1,6 +1,5 @@
-version: '3.8'
-
 services:
+  # Infrastructure Services
   mongodb:
     image: mongo:7
     container_name: sos-cidadao-mongodb
@@ -14,6 +13,12 @@ services:
       - ./infra/docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - sos-cidadao-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   redis:
     image: redis:7-alpine
@@ -25,55 +30,117 @@ services:
       - redis_data:/data
     networks:
       - sos-cidadao-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  lavinmq:
-    image: lavinmq/lavinmq:latest
-    container_name: sos-cidadao-lavinmq
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: sos-cidadao-rabbitmq
     restart: unless-stopped
     environment:
-      LAVINMQ_DEFAULT_USER: admin
-      LAVINMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
     ports:
       - "5672:5672"   # AMQP port
       - "15672:15672" # Management UI
     volumes:
-      - lavinmq_data:/var/lib/lavinmq
+      - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - sos-cidadao-network
-
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: sos-cidadao-otel-collector
-    restart: unless-stopped
-    command: ["--config=/etc/otel-collector-config.yaml"]
-    volumes:
-      - ./infra/collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-      - "8888:8888"   # Prometheus metrics
-      - "8889:8889"   # Prometheus exporter metrics
-    depends_on:
-      - jaeger
-    networks:
-      - sos-cidadao-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/all-in-one:1.60
     container_name: sos-cidadao-jaeger
     restart: unless-stopped
     environment:
       COLLECTOR_OTLP_ENABLED: true
     ports:
       - "16686:16686" # Jaeger UI
-      - "14250:14250" # Jaeger gRPC
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
     networks:
       - sos-cidadao-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:16686/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Application Services
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: sos-cidadao-api
+    restart: unless-stopped
+    env_file:
+      - .env.development
+    ports:
+      - "8000:5000"
+    volumes:
+      - ./api:/app
+      - /app/__pycache__  # Exclude pycache from volume mount
+    networks:
+      - sos-cidadao-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      jaeger:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/api/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sos-cidadao-frontend
+    restart: unless-stopped
+    environment:
+      # Vite configuration
+      VITE_API_BASE_URL: https://api.sos-cidadao.orb.local
+      VITE_APP_TITLE: "S.O.S Cidadão - Development"
+      NODE_ENV: development
+    ports:
+      - "3005:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Exclude node_modules from volume mount
+    networks:
+      - sos-cidadao-network
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   mongodb_data:
   redis_data:
-  lavinmq_data:
+  rabbitmq_data:
 
 networks:
   sos-cidadao-network:

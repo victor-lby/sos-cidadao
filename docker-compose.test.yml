@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb-test:
     image: mongo:7
@@ -21,12 +19,12 @@ services:
     networks:
       - sos-cidadao-test-network
 
-  lavinmq-test:
-    image: lavinmq/lavinmq:latest
-    container_name: sos-cidadao-lavinmq-test
+  rabbitmq-test:
+    image: rabbitmq:3-management-alpine
+    container_name: sos-cidadao-rabbitmq-test
     environment:
-      LAVINMQ_DEFAULT_USER: test
-      LAVINMQ_DEFAULT_PASS: test123
+      RABBITMQ_DEFAULT_USER: test
+      RABBITMQ_DEFAULT_PASS: test123
     ports:
       - "5673:5672"
       - "15673:15672"

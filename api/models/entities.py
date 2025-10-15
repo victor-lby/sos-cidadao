@@ -100,6 +100,7 @@ class User(BaseEntity):
     last_login: Optional[datetime] = Field(None, description="Last login timestamp")
     failed_login_attempts: int = Field(default=0, description="Failed login attempt counter")
     locked_until: Optional[datetime] = Field(None, description="Account lock expiration")
+    permissions: List[str] = Field(default_factory=list, description="Aggregated permissions from roles")
     schema_version: int = Field(default=1, description="Schema version")
     
     @field_validator('email')

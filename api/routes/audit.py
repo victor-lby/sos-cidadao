@@ -16,12 +16,12 @@ import io
 from datetime import datetime
 from typing import Dict, Any, List
 
-from ..models.requests import AuditLogFilters, PaginationParams
-from ..models.responses import AuditLogResponse, AuditLogCollectionResponse, AuditStatisticsResponse
-from ..models.entities import UserContext
-from ..services.audit import AuditService, AuditFilters, get_audit_service
-from ..middleware.auth import require_auth
-from ..utils.request import get_request_context
+from models.requests import AuditLogFilters, PaginationParams
+from models.responses import AuditLogResponse, AuditLogCollectionResponse, AuditStatisticsResponse
+from models.entities import UserContext
+from services.audit import AuditService, AuditFilters, get_audit_service
+from middleware.auth import require_auth
+from utils.request import get_request_context
 
 # Set up logging and tracing
 logger = logging.getLogger(__name__)
@@ -42,9 +42,68 @@ def require_jwt(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        from flask import g
+        from middleware.auth import require_auth
+        
         # Get auth middleware from current app
         auth_middleware = current_app.auth_middleware
-        return require_auth(auth_middleware)(f)(*args, **kwargs)
+        
+        # Extract token from request
+        token = auth_middleware.extract_token_from_request()
+        if not token:
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/authentication-required",
+                "title": "Authentication Required",
+                "status": 401,
+                "detail": "Missing authorization token",
+                "instance": request.path
+            }), 401
+        
+        # Check if token is blocked
+        if auth_middleware.is_token_blocked(token):
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/token-revoked",
+                "title": "Token Revoked",
+                "status": 401,
+                "detail": "Token has been revoked",
+                "instance": request.path
+            }), 401
+        
+        # Validate token
+        try:
+            from services.auth import TokenValidationError
+            
+            token_payload = auth_middleware.auth_service.validate_token(token, "access")
+            
+            # Build user context
+            request_info = auth_middleware.get_request_info()
+            user_context = auth_middleware.build_user_context(token_payload, request_info)
+            
+            # Store user context in Flask's g object
+            g.user_context = user_context
+            
+            # Call the protected route with user context
+            return f(user_context, *args, **kwargs)
+            
+        except TokenValidationError as e:
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/invalid-token",
+                "title": "Invalid Token",
+                "status": 401,
+                "detail": str(e),
+                "instance": request.path
+            }), 401
+        
+        except Exception as e:
+            logger.error(f"Authentication error: {str(e)}")
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/authentication-error",
+                "title": "Authentication Error",
+                "status": 500,
+                "detail": "Internal authentication error",
+                "instance": request.path
+            }), 500
+    
     return decorated_function
 
 

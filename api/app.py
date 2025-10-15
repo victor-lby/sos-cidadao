@@ -47,7 +47,7 @@ tags = [
 ]
 
 # Create Flask app with OpenAPI
-app = OpenAPI(__name__, info=info, tags=tags)
+app = OpenAPI(__name__, info=info)
 
 # Add observability middleware
 add_observability_middleware(app)
@@ -79,15 +79,18 @@ app.config['BASE_URL'] = os.getenv('BASE_URL', 'http://localhost:5000')
 
 # Initialize services
 mongodb_service = MongoDBService(app.config['MONGODB_URI'])
-redis_service = RedisService(
-    app.config['REDIS_URL'], 
-    app.config['REDIS_TOKEN']
-)
-auth_service = AuthService(
-    app.config['JWT_SECRET_KEY'],
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'],
-    app.config['JWT_REFRESH_TOKEN_EXPIRES']
-)
+
+# Use local Redis service for development
+if app.config['ENVIRONMENT'] == 'development':
+    from services.redis_local import RedisService
+    redis_service = RedisService(app.config['REDIS_URL'])
+else:
+    from services.redis import RedisService
+    redis_service = RedisService(
+        app.config['REDIS_URL'], 
+        app.config['REDIS_TOKEN']
+    )
+auth_service = AuthService()
 
 # Initialize AMQP service
 from services.amqp import create_amqp_service

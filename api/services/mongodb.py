@@ -133,7 +133,7 @@ class MongoDBService:
     
     def _build_org_query(self, org_id: str, filters: Dict = None, include_deleted: bool = False) -> Dict:
         """Build organization-scoped query with optional filters."""
-        query = {"organizationId": org_id}
+        query = {"organizationId": ObjectId(org_id)}
         
         # Exclude soft-deleted records by default
         if not include_deleted:
@@ -157,6 +157,23 @@ class MongoDBService:
         document["updatedBy"] = user_id
         
         return document
+    
+    def _convert_objectids_to_strings(self, doc: Dict) -> None:
+        """Convert all ObjectId fields in a document to strings."""
+        for key, value in list(doc.items()):
+            if isinstance(value, ObjectId):
+                doc[key] = str(value)
+            elif isinstance(value, list):
+                # Handle lists that might contain ObjectIds
+                doc[key] = [str(item) if isinstance(item, ObjectId) else item for item in value]
+            elif isinstance(value, dict):
+                # Recursively handle nested dictionaries
+                self._convert_objectids_to_strings(value)
+        
+        # Special handling for _id field
+        if "_id" in doc:
+            doc["id"] = str(doc["_id"])
+            del doc["_id"]
     
     # CRUD Operations with Organization Scoping
     
@@ -331,9 +348,7 @@ class MongoDBService:
             
             # Convert ObjectId to string
             for doc in documents:
-                if "_id" in doc:
-                    doc["id"] = str(doc["_id"])
-                    del doc["_id"]
+                self._convert_objectids_to_strings(doc)
             
             logger.debug(f"Paginated {len(documents)} documents from {collection} (page {page})")
             return PaginationResult(documents, total, page, page_size)

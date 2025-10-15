@@ -13,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 from opentelemetry import trace
 import logging
 
-from ..services.hal import HalFormatter
+from services.hal import HalFormatter
 
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)

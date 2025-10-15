@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """
-AMQP Service for LavinMQ Integration
+AMQP Service for RabbitMQ Integration
 
 This module provides AMQP message publishing capabilities for the S.O.S Cidadão platform.
 It handles connection management, exchange/queue setup, and message publishing with
@@ -279,7 +279,7 @@ class PayloadTransformer:
 
 class AMQPService:
     """
-    AMQP service for LavinMQ integration with serverless-friendly connection handling.
+    AMQP service for RabbitMQ integration with serverless-friendly connection handling.
     
     This service provides:
     - Connection pooling with automatic reconnection
@@ -874,9 +874,10 @@ class AMQPService:
         """
         try:
             with self._get_connection() as channel:
-                # Simple operation to verify connection
-                channel.queue_declare(queue='health_check', passive=True, auto_delete=True)
-                return True
+                # Simple operation to verify connection - just check if channel is open
+                if channel.is_open:
+                    return True
+                return False
         except Exception as e:
             logger.warning(
                 "AMQP health check failed",

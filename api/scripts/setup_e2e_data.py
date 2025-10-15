@@ -28,16 +28,16 @@ def setup_e2e_data():
     
     # Clear existing data
     print("Clearing existing test data...")
-    mongo_svc.db.organizations.delete_many({})
-    mongo_svc.db.users.delete_many({})
-    mongo_svc.db.notifications.delete_many({})
-    mongo_svc.db.roles.delete_many({})
-    mongo_svc.db.permissions.delete_many({})
-    mongo_svc.db.audit_logs.delete_many({})
+    mongo_svc.get_collection("organizations").delete_many({})
+    mongo_svc.get_collection("users").delete_many({})
+    mongo_svc.get_collection("notifications").delete_many({})
+    mongo_svc.get_collection("roles").delete_many({})
+    mongo_svc.get_collection("permissions").delete_many({})
+    mongo_svc.get_collection("audit_logs").delete_many({})
     
     # Create test organization
     print("Creating test organization...")
-    org_id = str(ObjectId())
+    org_id = ObjectId()
     organization = {
         "_id": org_id,
         "name": "Test Municipality",
@@ -49,7 +49,7 @@ def setup_e2e_data():
         "updatedBy": "system",
         "schemaVersion": 1
     }
-    mongo_svc.db.organizations.insert_one(organization)
+    mongo_svc.get_collection("organizations").insert_one(organization)
     
     # Create test permissions
     print("Creating test permissions...")
@@ -79,13 +79,16 @@ def setup_e2e_data():
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.permissions.insert_many(permissions)
+    mongo_svc.get_collection("permissions").insert_many(permissions)
     
     # Create test roles
     print("Creating test roles...")
+    role_operator_id = ObjectId()
+    role_admin_id = ObjectId()
+    
     roles = [
         {
-            "_id": "role_operator",
+            "_id": role_operator_id,
             "organizationId": org_id,
             "name": "Operator",
             "description": "Municipal operator with notification management rights",
@@ -98,7 +101,7 @@ def setup_e2e_data():
             "schemaVersion": 1
         },
         {
-            "_id": "role_admin",
+            "_id": role_admin_id,
             "organizationId": org_id,
             "name": "Administrator",
             "description": "System administrator with full access",
@@ -111,7 +114,7 @@ def setup_e2e_data():
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.roles.insert_many(roles)
+    mongo_svc.get_collection("roles").insert_many(roles)
     
     # Create test users
     print("Creating test users...")
@@ -119,12 +122,12 @@ def setup_e2e_data():
     
     users = [
         {
-            "_id": "user_operator",
+            "_id": ObjectId(),
             "organizationId": org_id,
             "email": "operator@test-municipality.gov",
             "name": "Test Operator",
             "passwordHash": password_hash,
-            "roles": ["role_operator"],
+            "roles": [role_operator_id],
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
             "deletedAt": None,
@@ -133,12 +136,12 @@ def setup_e2e_data():
             "schemaVersion": 1
         },
         {
-            "_id": "user_admin",
+            "_id": ObjectId(),
             "organizationId": org_id,
             "email": "admin@test-municipality.gov",
             "name": "Test Administrator",
             "passwordHash": password_hash,
-            "roles": ["role_admin"],
+            "roles": [role_admin_id],
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
             "deletedAt": None,
@@ -147,13 +150,16 @@ def setup_e2e_data():
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.users.insert_many(users)
+    mongo_svc.get_collection("users").insert_many(users)
     
     # Create test notification targets
     print("Creating test notification targets...")
+    target_downtown_id = ObjectId()
+    target_residential_id = ObjectId()
+    
     targets = [
         {
-            "_id": "target_downtown",
+            "_id": target_downtown_id,
             "organizationId": org_id,
             "name": "Downtown District",
             "description": "Central business district",
@@ -167,7 +173,7 @@ def setup_e2e_data():
             "schemaVersion": 1
         },
         {
-            "_id": "target_residential",
+            "_id": target_residential_id,
             "organizationId": org_id,
             "name": "Residential Areas",
             "description": "Residential neighborhoods",
@@ -181,17 +187,20 @@ def setup_e2e_data():
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.notification_targets.insert_many(targets)
+    mongo_svc.get_collection("notification_targets").insert_many(targets)
     
     # Create test notification categories
     print("Creating test notification categories...")
+    cat_emergency_id = ObjectId()
+    cat_maintenance_id = ObjectId()
+    
     categories = [
         {
-            "_id": "cat_emergency",
+            "_id": cat_emergency_id,
             "organizationId": org_id,
             "name": "Emergency Alert",
             "description": "Critical emergency notifications",
-            "targets": ["target_downtown", "target_residential"],
+            "targets": [target_downtown_id, target_residential_id],
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
             "deletedAt": None,
@@ -200,11 +209,11 @@ def setup_e2e_data():
             "schemaVersion": 1
         },
         {
-            "_id": "cat_maintenance",
+            "_id": cat_maintenance_id,
             "organizationId": org_id,
             "name": "Maintenance Notice",
             "description": "Scheduled maintenance notifications",
-            "targets": ["target_downtown"],
+            "targets": [target_downtown_id],
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow(),
             "deletedAt": None,
@@ -213,7 +222,7 @@ def setup_e2e_data():
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.notification_categories.insert_many(categories)
+    mongo_svc.get_collection("notification_categories").insert_many(categories)
     
     # Create sample notifications
     print("Creating sample notifications...")
@@ -230,9 +239,9 @@ def setup_e2e_data():
                 "location": "Main Street & 1st Avenue",
                 "estimated_duration": "4-6 hours"
             },
-            "baseTarget": "target_downtown",
-            "targets": ["target_downtown"],
-            "categories": ["cat_emergency"],
+            "baseTarget": target_downtown_id,
+            "targets": [target_downtown_id],
+            "categories": [cat_emergency_id],
             "status": NotificationStatus.RECEIVED.value,
             "denialReason": None,
             "createdAt": datetime.utcnow() - timedelta(hours=2),
@@ -254,16 +263,16 @@ def setup_e2e_data():
                 "location": "Oak Avenue",
                 "scheduled_time": "9:00 AM - 3:00 PM"
             },
-            "baseTarget": "target_downtown",
-            "targets": ["target_downtown"],
-            "categories": ["cat_maintenance"],
+            "baseTarget": target_downtown_id,
+            "targets": [target_downtown_id],
+            "categories": [cat_maintenance_id],
             "status": NotificationStatus.APPROVED.value,
             "denialReason": None,
             "createdAt": datetime.utcnow() - timedelta(hours=1),
             "updatedAt": datetime.utcnow() - timedelta(minutes=30),
             "deletedAt": None,
             "createdBy": "system",
-            "updatedBy": "user_operator",
+            "updatedBy": "system",
             "schemaVersion": 1
         },
         {
@@ -277,23 +286,25 @@ def setup_e2e_data():
                 "test_id": "TEST-001",
                 "purpose": "E2E testing"
             },
-            "baseTarget": "target_residential",
-            "targets": ["target_residential"],
-            "categories": ["cat_maintenance"],
+            "baseTarget": target_residential_id,
+            "targets": [target_residential_id],
+            "categories": [cat_maintenance_id],
             "status": NotificationStatus.DENIED.value,
             "denialReason": "Test notification - not for actual dispatch",
+            "deniedBy": "system",
+            "deniedAt": datetime.utcnow() - timedelta(minutes=30),
             "createdAt": datetime.utcnow() - timedelta(minutes=45),
             "updatedAt": datetime.utcnow() - timedelta(minutes=30),
             "deletedAt": None,
             "createdBy": "system",
-            "updatedBy": "user_operator",
+            "updatedBy": "system",
             "schemaVersion": 1
         }
     ]
-    mongo_svc.db.notifications.insert_many(notifications)
+    mongo_svc.get_collection("notifications").insert_many(notifications)
     
     print("E2E test data setup complete!")
-    print(f"Organization ID: {org_id}")
+    print(f"Organization ID: {str(org_id)}")
     print("Test users:")
     print("  - operator@test-municipality.gov / testpassword123 (Operator role)")
     print("  - admin@test-municipality.gov / testpassword123 (Administrator role)")

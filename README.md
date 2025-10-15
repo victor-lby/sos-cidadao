@@ -71,12 +71,10 @@ S.O.S Cidadão is a public, open-source civic notification system designed for m
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 18+
 - Docker and Docker Compose
 - Git
 
-### Local Development
+### Quick Start (Recommended)
 
 1. **Clone the repository**
    ```bash
@@ -84,18 +82,39 @@ S.O.S Cidadão is a public, open-source civic notification system designed for m
    cd sos-cidadao
    ```
 
-2. **Start local infrastructure**
+2. **Start the complete development environment**
    ```bash
-   docker-compose up -d
+   ./scripts/dev-start.sh
    ```
 
-3. **Set up backend**
+3. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+   - API Documentation: http://localhost:5000/openapi/swagger
+
+### Manual Development (Alternative)
+
+If you prefer to run services individually:
+
+1. **Start infrastructure only**
+   ```bash
+   docker compose up -d mongodb redis rabbitmq jaeger
+   ```
+
+2. **Run backend locally**
    ```bash
    cd api
+   python -m venv venv
+   source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
-   export FLASK_ENV=development
-   export FLASK_DEBUG=1
-   flask run
+   python app.py
+   ```
+
+3. **Run frontend locally**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
    ```
 
 4. **Set up frontend**

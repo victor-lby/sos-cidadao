@@ -25,13 +25,13 @@ processors:
     limit_mib: 512
 
 exporters:
-  # Console exporter for development
-  logging:
-    loglevel: debug
+  # Debug exporter for development (replaces deprecated logging)
+  debug:
+    verbosity: detailed
 
-  # Jaeger exporter
-  jaeger:
-    endpoint: jaeger:14250
+  # OTLP exporter to Jaeger v2
+  otlp/jaeger:
+    endpoint: jaeger:4317
     tls:
       insecure: true
 
@@ -44,16 +44,16 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters: [logging, jaeger]
+      exporters: [debug, otlp/jaeger]
     
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters: [logging, prometheus]
+      exporters: [debug, prometheus]
     
     logs:
       receivers: [otlp]
       processors: [memory_limiter, resource, batch]
-      exporters: [logging]
+      exporters: [debug]
 
   extensions: []

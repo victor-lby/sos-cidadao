@@ -14,7 +14,7 @@ import time
 import hashlib
 import logging
 
-from ..services.hal import HalFormatter
+from services.hal import HalFormatter
 
 logger = logging.getLogger(__name__)
 

@@ -434,7 +434,7 @@ class TestHealthCheckService:
         assert result['status'] == 'healthy'
         assert 'response_time_ms' in result
         assert 'broker' in result
-        assert result['broker'] == 'LavinMQ'
+        assert result['broker'] == 'RabbitMQ'
         assert 'last_check' in result
     
     def test_amqp_health_check_failure(self):

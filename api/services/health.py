@@ -180,7 +180,7 @@ class HealthCheckService:
                 }
     
     def _check_amqp_health(self) -> Dict[str, Any]:
-        """Check AMQP/LavinMQ connectivity and performance."""
+        """Check AMQP/RabbitMQ connectivity and performance."""
         with tracer.start_as_current_span("health.amqp_check") as span:
             try:
                 start_time = time.time()
@@ -196,7 +196,7 @@ class HealthCheckService:
                 health_info = {
                     "status": "healthy",
                     "response_time_ms": response_time,
-                    "broker": "LavinMQ",
+                    "broker": "RabbitMQ",
                     "last_check": datetime.utcnow().isoformat() + "Z"
                 }
                 

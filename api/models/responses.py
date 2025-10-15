@@ -309,3 +309,13 @@ class AuditStatisticsResponse(HalResponse):
     period: Dict[str, Any] = Field(..., description="Statistics period information")
     total_actions: int = Field(..., description="Total number of actions in period")
     entities: Dict[str, Dict[str, Any]] = Field(..., description="Statistics by entity type")
+
+
+class NotificationCollectionResponse(HalCollection[NotificationResponse]):
+    """Collection of notifications."""
+    pass
+
+
+class OrganizationCollection(HalCollection[OrganizationResponse]):
+    """Collection of organizations."""
+    pass

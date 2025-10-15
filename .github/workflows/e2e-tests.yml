@@ -36,8 +36,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
           
-      lavinmq:
-        image: lavinmq/lavinmq:latest
+      rabbitmq:
+        image: rabbitmq:3-management-alpine
         ports:
           - 5672:5672
           - 15672:15672

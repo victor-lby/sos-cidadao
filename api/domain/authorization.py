@@ -9,7 +9,7 @@ and authorization checks with organization scoping.
 
 from typing import List, Dict, Set, Any, Optional, Tuple
 from dataclasses import dataclass
-from ..models.entities import User, Role, Permission, UserContext
+from models.entities import User, Role, Permission, UserContext
 
 
 @dataclass

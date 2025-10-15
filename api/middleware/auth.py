@@ -84,7 +84,7 @@ class AuthMiddleware:
         Returns:
             UserContext object for request processing
         """
-        from ..models.entities import UserContext
+        from models.entities import UserContext
         
         return UserContext(
             user_id=token_payload["sub"],
@@ -156,13 +156,20 @@ def require_auth(auth_middleware: AuthMiddleware) -> Callable:
                 
                 # Validate token
                 try:
-                    from ..services.auth import TokenValidationError
+                    from services.auth import TokenValidationError
                     
+                    logger.info("Validating token...")
                     token_payload = auth_middleware.auth_service.validate_token(token, "access")
+                    logger.info(f"Token validated successfully, payload keys: {list(token_payload.keys())}")
                     
                     # Build user context
+                    logger.info("Getting request info...")
                     request_info = auth_middleware.get_request_info()
+                    logger.info(f"Request info: {request_info}")
+                    
+                    logger.info("Building user context...")
                     user_context = auth_middleware.build_user_context(token_payload, request_info)
+                    logger.info(f"User context built successfully")
                     
                     # Store user context in Flask's g object
                     g.user_context = user_context

@@ -11,8 +11,8 @@ from typing import Dict, Any, Optional, Callable
 from flask import request, g
 from opentelemetry import trace
 
-from ..services.audit import AuditService, get_audit_service
-from ..models.entities import UserContext
+from services.audit import AuditService, get_audit_service
+from models.entities import UserContext
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -273,7 +273,7 @@ def log_authentication_event(action: str, user_id: Optional[str] = None, success
         
         if not user_context and user_id:
             # Create minimal context for auth events where user_context might not be available
-            from ..models.entities import UserContext
+            from models.entities import UserContext
             user_context = UserContext(
                 user_id=user_id,
                 org_id="unknown",  # Will be updated when we have the full context

@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from opentelemetry import trace
 import logging
 
-from ..models.entities import User
+from models.entities import User
 
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -56,24 +56,59 @@ class AuthService:
         self.refresh_token_expire_days = 7
         
     def _get_private_key(self) -> str:
-        """Get private key from environment or generate for development."""
+        """Get private key from environment or use fixed development key."""
         private_key_env = os.getenv("JWT_PRIVATE_KEY")
         if private_key_env:
             return private_key_env
             
-        # Generate key pair for development
-        logger.warning("No JWT_PRIVATE_KEY found, generating development key pair")
-        return self._generate_dev_key_pair()[0]
+        # Use fixed development key for consistency
+        logger.warning("No JWT_PRIVATE_KEY found, using fixed development key")
+        return """-----BEGIN PRIVATE KEY-----
+MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQCmtVg38SJIjcCQ
++uBwaMPCUg+IojMsiUp8BuXtSfrOnYYOvH9B6wgkhmF7jsY1ALhqZuKXtjg4nxx2
+ghH188ip59cJTyyOvUbxb+e86MxwY1J+DC8yQM0qn17MPFgcvIMFUboumyNHHBUY
+ZmvP9W9GZD1UDa9Zpo26706zpSwsy45TzHJ4KtAepQh0uFIuM4r13wRJc5UgcEL1
+poATvdxcLuiTdNufOqDS0NJeA3BAwYo08QGNYYCaE20GrjKJ3XZietd7pa8wD6PP
+H7BgB+ILLoLJf6dNaRpDsdmoGMIySXNRwWNZTOQ2CVg/kiIUK8xBoQKDrleJdpuS
+rwG/5NPLAgMBAAECggEAGWoV+9lH97WcgL2uT5S5Gzu1YIgRsx1u/H90t/sKQEtl
+b4OvBtaU1DSkUdjPQK9ObfInYyeFZKRlC3AC2vMCSVytvJ6UVWJnmVENDBCVciDC
+J7Ml0sxsOq43Hn2olSDr/HicIJTICQQv9xtOHlL1Vs7bRqAbdlhczP3EisCIfn9+
+pR+TrQk+lGGlcl6542slcsUIt9qtU/SfkRhRSWQpZVBchdKIbJwx02k5jlpOasDl
+bq7qyJ0WXu1lK1uh2snECHXI66OuM5VVc7MlR+3iZFVrmed6watYWSx8lzuX8qIv
+VmtaIuXcwO8waLpPQefwdLFAH+GKHHw9T7tg8ttP6QKBgQDbmj9/jlHyiEtYbTAd
+IWlB//9022Ogjf4qd0DzD3I9NwTtddedTlgRYIdI9XyXYsu7NQrbc4930VN4sP/Y
+JGe1AkViSTmI0nm3m23xmbAqCqOZTmzElgxhd0jdicKhJveY9dQ856cRwFqzYFt8
+Q9RgrvWcIGvzpQc4BXiq6F6tHwKBgQDCVssqtGzSrnSy34ewKkF8pPF74eTg2gmr
+FyoR58qDNC9xXIR1qHlxgNBxaQrwnjpExiK8Q5be/hpgMEA4QXGVWYAP+ZnJ4pta
+ldC5VzyggAw7uPOOqzbZvIcswh1EUkQ/c8OGKlAsUzHtg/OKkizGL3189VHDpSMd
+Ph8vJU8X1QKBgQC9ylGWrCmmsqRrh/JNOtL9d4IQPIud9xnzGZ3Ic1EIFsTrdS0j
+htIWMpa5N3C2ZWwuH2mCwBz+MKszY8W5x7zZc10D1MUkusL3LB2Y8HqP2yIJHP5j
+6EpK8gzHaogLPuI+EDeda5e4f8XjwSNQAk9KP+uFQ4AI0leq0w+2pZ0tgQKBgQCE
+qDqHLCIcrnl6oJs+5ZlOPEmbBtf1pOB0qZtOHatfZH/+IelJZ3d+wy+GOu380gV0
+bMvJN1oFXe8jOcycmg+uoymHvhn8dXMWoq2X1rTL2px/KAEZokYO22JqaxcPTBjK
+N3uAWeHgX+n0992G+cEWh9RhOBRYOKF/lKg0xoL3AQKBgQCANTB1Z/iL69IidmNy
+vTtOHTBDjyFT2hoYssCrAsc/35i+68IMlBGPWyK2hN2gMM/IgmcuhHVJdhfiX1Rf
+DIHRAnGo36MQEVCfh/ov83V7ayXEpqeyP7bcj6hNMfXu1hnzQfUzKEPqFz0G4Cax
+G4l7el1FwSGftvihrt9Q3cASrg==
+-----END PRIVATE KEY-----"""
     
     def _get_public_key(self) -> str:
-        """Get public key from environment or generate for development."""
+        """Get public key from environment or use fixed development key."""
         public_key_env = os.getenv("JWT_PUBLIC_KEY")
         if public_key_env:
             return public_key_env
             
-        # Generate key pair for development
-        logger.warning("No JWT_PUBLIC_KEY found, generating development key pair")
-        return self._generate_dev_key_pair()[1]
+        # Use fixed development key for consistency
+        logger.warning("No JWT_PUBLIC_KEY found, using fixed development key")
+        return """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAprVYN/EiSI3AkPrgcGjD
+wlIPiKIzLIlKfAbl7Un6zp2GDrx/QesIJIZhe47GNQC4ambil7Y4OJ8cdoIR9fPI
+qefXCU8sjr1G8W/nvOjMcGNSfgwvMkDNKp9ezDxYHLyDBVG6LpsjRxwVGGZrz/Vv
+RmQ9VA2vWaaNuu9Os6UsLMuOU8xyeCrQHqUIdLhSLjOK9d8ESXOVIHBC9aaAE73c
+XC7ok3Tbnzqg0tDSXgNwQMGKNPEBjWGAmhNtBq4yid12YnrXe6WvMA+jzx+wYAfi
+Cy6CyX+nTWkaQ7HZqBjCMklzUcFjWUzkNglYP5IiFCvMQaECg65XiXabkq8Bv+TT
+ywIDAQAB
+-----END PUBLIC KEY-----"""
     
     def _generate_dev_key_pair(self) -> Tuple[str, str]:
         """Generate RSA key pair for development use."""

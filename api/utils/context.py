@@ -11,8 +11,8 @@ from typing import Optional, Dict, Any
 from opentelemetry import trace
 import logging
 
-from ..models.entities import UserContext
-from ..middleware.error_handler import AuthorizationException, NotFoundException
+from models.entities import UserContext
+from middleware.error_handler import AuthorizationException, NotFoundException
 
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)

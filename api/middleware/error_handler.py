@@ -13,7 +13,7 @@ from opentelemetry import trace
 import logging
 import traceback
 
-from ..services.hal import HalFormatter
+from services.hal import HalFormatter
 
 tracer = trace.get_tracer(__name__)
 logger = logging.getLogger(__name__)
@@ -123,13 +123,23 @@ class ErrorHandlerMiddleware:
                 }
             )
             
-            error_response = self.hal_formatter.builder.build_error_response(
-                error_type,
-                title,
-                error.code,
-                detail,
-                request.path
-            )
+            # Use appropriate formatter method based on error type
+            if error_type == "authentication-required":
+                error_response = self.hal_formatter.format_authentication_error(detail, request.path)
+            elif error_type == "insufficient-permissions":
+                error_response = self.hal_formatter.format_authorization_error(detail, request.path)
+            elif error_type == "resource-not-found":
+                error_response = self.hal_formatter.format_not_found_error(detail, request.path)
+            elif error_type == "resource-conflict":
+                error_response = self.hal_formatter.format_conflict_error(detail, request.path)
+            else:
+                error_response = self.hal_formatter.builder.build_error_response(
+                    error_type,
+                    title,
+                    error.code,
+                    detail,
+                    request.path
+                )
             
             return error_response, error.code
     
@@ -178,13 +188,7 @@ class ErrorHandlerMiddleware:
             if self.app.config.get('ENV') == 'production':
                 detail = "An internal server error occurred"
             
-            error_response = self.hal_formatter.builder.build_error_response(
-                error_type,
-                title,
-                error.code,
-                detail,
-                request.path
-            )
+            error_response = self.hal_formatter.format_server_error(detail, request.path)
             
             return error_response, error.code
     
@@ -229,13 +233,7 @@ class ErrorHandlerMiddleware:
             if self.app.config.get('ENV') != 'production':
                 detail = f"{error.__class__.__name__}: {str(error)}"
             
-            error_response = self.hal_formatter.builder.build_error_response(
-                "unexpected-error",
-                "Unexpected Error",
-                500,
-                detail,
-                request.path
-            )
+            error_response = self.hal_formatter.format_server_error(detail, request.path)
             
             return error_response, 500
 
@@ -323,17 +321,22 @@ def register_custom_error_handlers(app: Flask, hal_formatter: HalFormatter):
                 }
             )
             
-            validation_errors = None
+            # Use appropriate formatter method based on error type
             if isinstance(error, ValidationException):
-                validation_errors = error.validation_errors
-            
-            error_response = hal_formatter.builder.build_error_response(
-                error.error_type,
-                error.__class__.__name__.replace('Exception', '').replace('Error', ''),
-                error.status_code,
-                error.message,
-                request.path,
-                validation_errors
-            )
+                error_response = hal_formatter.format_validation_error(
+                    error.message, 
+                    request.path, 
+                    error.validation_errors
+                )
+            elif isinstance(error, AuthenticationException):
+                error_response = hal_formatter.format_authentication_error(error.message, request.path)
+            elif isinstance(error, AuthorizationException):
+                error_response = hal_formatter.format_authorization_error(error.message, request.path)
+            elif isinstance(error, NotFoundException):
+                error_response = hal_formatter.format_not_found_error(error.message, request.path)
+            elif isinstance(error, ConflictException):
+                error_response = hal_formatter.format_conflict_error(error.message, request.path)
+            else:
+                error_response = hal_formatter.format_server_error(error.message, request.path)
             
             return jsonify(error_response), error.status_code

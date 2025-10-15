@@ -30,7 +30,6 @@ def build_error_response(error_type: str, title: str, status: int, detail: str, 
         error_type, title, status, detail, instance
     )
 
-
 # Set up logging and tracing
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -65,12 +64,11 @@ def login():
             request_data = request.get_json()
             if not request_data:
                 span.set_status(Status(StatusCode.ERROR, "Missing request body"))
-                return jsonify(build_error_response(
-                    "validation-error",
-                    "Validation Error",
-                    400,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Missing request body",
-                    request.path
+                    400,
+                    "validation_error",
+                    request.url
                 )), 400
             
             # Validate request using Pydantic
@@ -100,12 +98,9 @@ def login():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "validation-error",
-                    "Validation Error",
-                    400,
+                return jsonify(current_app.hal_formatter.builder.build_validation_error_response(
                     str(e),
-                    request.path
+                    request.url
                 )), 400
             
             # Find user by email
@@ -146,12 +141,11 @@ def login():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "authentication-required",
-                    "Authentication Required",
-                    401,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Invalid email or password",
-                    request.path
+                    401,
+                    "authentication_failed",
+                    request.url
                 )), 401
             
             # Convert to user entity
@@ -159,12 +153,12 @@ def login():
                 
                 user_data = {
                     "id": str(user_doc["_id"]),
-                    "organization_id": str(user_doc["organizationId"]),
+                    "organization_id": user_doc["organizationId"],
                     "email": user_doc["email"],
                     "name": user_doc["name"],
                     "password_hash": user_doc["passwordHash"],
-                    "roles": [str(role_id) for role_id in user_doc.get("roles", [])],
-                    "status": user_doc.get("status", "active"),
+                    "roles": user_doc.get("roles", []),
+                    "status": user_doc["status"],
                     "last_login": user_doc.get("lastLogin"),
                     "failed_login_attempts": user_doc.get("failedLoginAttempts", 0),
                     "locked_until": user_doc.get("lockedUntil"),
@@ -200,12 +194,11 @@ def login():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "internal-server-error",
-                    "Internal Server Error",
-                    500,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Authentication failed",
-                    request.path
+                    500,
+                    "internal_error",
+                    request.url
                 )), 500
             
             # Check if user account is active
@@ -234,12 +227,11 @@ def login():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "authentication-required",
-                    "Authentication Required",
-                    401,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Account is inactive or locked",
-                    request.path
+                    401,
+                    "account_inactive",
+                    request.url
                 )), 401
             
             # Verify password
@@ -280,12 +272,11 @@ def login():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "authentication-required",
-                    "Authentication Required",
-                    401,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Invalid email or password",
-                    request.path
+                    401,
+                    "authentication_failed",
+                    request.url
                 )), 401
             
             # Get user permissions (aggregate from roles)
@@ -296,27 +287,16 @@ def login():
                     roles_collection = current_app.mongodb_service.get_collection("roles")
                     roles_docs = list(roles_collection.find({
                         "_id": {"$in": [ObjectId(role_id) for role_id in user.roles]},
-                        "organizationId": ObjectId(user.organization_id),
+                        "organizationId": user.organization_id,
                         "deletedAt": None
                     }))
                     
-                    # Aggregate permission IDs from all roles
-                    permission_ids = []
+                    # Aggregate permissions from all roles
                     for role_doc in roles_docs:
-                        permission_ids.extend(role_doc.get("permissions", []))
+                        permissions.extend(role_doc.get("permissions", []))
                     
-                    # Remove duplicate permission IDs
-                    permission_ids = list(set(permission_ids))
-                    
-                    # Resolve permission IDs to permission names
-                    if permission_ids:
-                        permissions_collection = current_app.mongodb_service.get_collection("permissions")
-                        permission_docs = list(permissions_collection.find({
-                            "_id": {"$in": permission_ids}
-                        }))
-                        
-                        # Extract permission names (e.g., "notification:view")
-                        permissions = [perm_doc["name"] for perm_doc in permission_docs]
+                    # Remove duplicates
+                    permissions = list(set(permissions))
                 
                 perm_span.set_attributes({
                     "auth.roles_count": len(user.roles),
@@ -354,12 +334,11 @@ def login():
                         }
                     )
                     
-                    return jsonify(build_error_response(
-                        "internal-server-error",
-                        "Internal Server Error",
-                        500,
+                    return jsonify(current_app.hal_formatter.builder.build_error_response(
                         "Authentication failed",
-                        request.path
+                        500,
+                        "token_generation_failed",
+                        request.url
                     )), 500
             
             # Update last login timestamp
@@ -371,8 +350,7 @@ def login():
                     {
                         "lastLogin": datetime.utcnow(),
                         "failedLoginAttempts": 0  # Reset failed attempts on successful login
-                    },
-                    "system"
+                    }
                 )
                 
                 update_span.set_attributes({
@@ -437,12 +415,11 @@ def login():
                 exc_info=True
             )
             
-            return jsonify(build_error_response(
-                "internal-server-error",
-                "Internal Server Error",
-                500,
+            return jsonify(current_app.hal_formatter.builder.build_error_response(
                 "Internal server error",
-                request.path
+                500,
+                "internal_error",
+                request.url
             )), 500
 
 
@@ -465,12 +442,11 @@ def refresh_token():
             request_data = request.get_json()
             if not request_data:
                 span.set_status(Status(StatusCode.ERROR, "Missing request body"))
-                return jsonify(build_error_response(
-                    "validation-error",
-                    "Validation Error",
-                    400,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Missing request body",
-                    request.path
+                    400,
+                    "validation_error",
+                    request.url
                 )), 400
             
             # Validate request using Pydantic
@@ -486,12 +462,9 @@ def refresh_token():
                     }
                 )
                 
-                return jsonify(build_error_response(
-                    "validation-error",
-                    "Validation Error",
-                    400,
+                return jsonify(current_app.hal_formatter.builder.build_validation_error_response(
                     str(e),
-                    request.path
+                    request.url
                 )), 400
             
             # Check if refresh token is blocked
@@ -518,12 +491,11 @@ def refresh_token():
                             }
                         )
                         
-                        return jsonify(build_error_response(
-                            "authentication-required",
-                            "Authentication Required",
-                            401,
+                        return jsonify(current_app.hal_formatter.builder.build_error_response(
                             "Token is invalid or has been revoked",
-                            request.path
+                            401,
+                            "token_revoked",
+                            request.url
                         )), 401
                         
                 except Exception as e:
@@ -556,12 +528,11 @@ def refresh_token():
                         }
                     )
                     
-                    return jsonify(build_error_response(
-                        "authentication-required",
-                        "Authentication Required",
-                        401,
+                    return jsonify(current_app.hal_formatter.builder.build_error_response(
                         "Invalid or expired refresh token",
-                        request.path
+                        401,
+                        "token_invalid",
+                        request.url
                     )), 401
             
             # Log successful token refresh
@@ -608,12 +579,11 @@ def refresh_token():
                 exc_info=True
             )
             
-            return jsonify(build_error_response(
-                "internal-server-error",
-                "Internal Server Error",
-                500,
+            return jsonify(current_app.hal_formatter.builder.build_error_response(
                 "Internal server error",
-                request.path
+                500,
+                "internal_error",
+                request.url
             )), 500
 
 
@@ -636,12 +606,11 @@ def logout():
             auth_header = request.headers.get('Authorization', '')
             if not auth_header.startswith('Bearer '):
                 span.set_status(Status(StatusCode.ERROR, "Missing or invalid authorization header"))
-                return jsonify(build_error_response(
-                    "authentication-required",
-                    "Authentication Required",
-                    401,
+                return jsonify(current_app.hal_formatter.builder.build_error_response(
                     "Missing or invalid authorization header",
-                    request.path
+                    401,
+                    "missing_token",
+                    request.url
                 )), 401
             
             access_token = auth_header.replace('Bearer ', '')
@@ -676,12 +645,11 @@ def logout():
                         }
                     )
                     
-                    return jsonify(build_error_response(
-                        "authentication-required",
-                        "Authentication Required",
-                        401,
+                    return jsonify(current_app.hal_formatter.builder.build_error_response(
                         "Invalid or expired token",
-                        request.path
+                        401,
+                        "token_invalid",
+                        request.url
                     )), 401
             
             # Block the access token
@@ -748,10 +716,9 @@ def logout():
                 exc_info=True
             )
             
-            return jsonify(build_error_response(
-                "internal-server-error",
-                "Internal Server Error",
-                500,
+            return jsonify(current_app.hal_formatter.builder.build_error_response(
                 "Internal server error",
-                request.path
+                500,
+                "internal_error",
+                request.url
             )), 500

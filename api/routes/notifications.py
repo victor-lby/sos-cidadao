@@ -18,22 +18,24 @@ from typing import Dict, Any, List, Optional
 from functools import wraps
 
 # Import domain logic and models
-from ..domain import notifications as notification_domain
-from ..models.requests import (
+from domain import notifications as notification_domain
+from models.requests import (
     NotificationWebhookRequest, ApproveNotificationRequest, 
     DenyNotificationRequest, NotificationFilters, PaginationParams
 )
-from ..models.responses import (
+from models.responses import (
     NotificationResponse, NotificationCollectionResponse,
     ErrorResponse, ValidationErrorResponse
 )
-from ..models.entities import UserContext, NotificationStatus
-from ..services.mongodb import MongoDBService
-from ..services.redis import RedisService
-from ..services.auth import AuthService
-from ..services.hal import HALFormatter
-from ..middleware.auth import require_auth
-from ..utils.request import get_request_context
+from models.entities import UserContext, NotificationStatus, Notification, Endpoint
+from services.amqp import create_amqp_service, PublishResult
+from middleware.audit import log_notification_workflow_event
+from services.mongodb import MongoDBService
+from services.redis import RedisService
+from services.auth import AuthService
+from services.hal import HalFormatter
+from middleware.auth import require_auth
+from utils.request import get_request_context
 
 # Set up logging and tracing
 logger = logging.getLogger(__name__)
@@ -49,36 +51,105 @@ notifications_bp = APIBlueprint(
 )
 
 
+def build_error_response(error_type: str, title: str, status: int, detail: str, instance: str):
+    """Helper function to build error responses correctly."""
+    return current_app.hal_formatter.builder.build_error_response(
+        error_type, title, status, detail, instance
+    )
+
+
 def require_jwt(f):
     """Simple JWT requirement decorator."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        from flask import g
+        from middleware.auth import require_auth
+        
         # Get auth middleware from current app
         auth_middleware = current_app.auth_middleware
-        return require_auth(auth_middleware)(f)(*args, **kwargs)
+        
+        # Extract token from request
+        token = auth_middleware.extract_token_from_request()
+        if not token:
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/authentication-required",
+                "title": "Authentication Required",
+                "status": 401,
+                "detail": "Missing authorization token",
+                "instance": request.path
+            }), 401
+        
+        # Check if token is blocked
+        if auth_middleware.is_token_blocked(token):
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/token-revoked",
+                "title": "Token Revoked",
+                "status": 401,
+                "detail": "Token has been revoked",
+                "instance": request.path
+            }), 401
+        
+        # Validate token
+        try:
+            from services.auth import TokenValidationError
+            
+            token_payload = auth_middleware.auth_service.validate_token(token, "access")
+            
+            # Build user context
+            request_info = auth_middleware.get_request_info()
+            user_context = auth_middleware.build_user_context(token_payload, request_info)
+            
+            # Store user context in Flask's g object
+            g.user_context = user_context
+            
+            # Call the protected route with user context
+            return f(user_context, *args, **kwargs)
+            
+        except TokenValidationError as e:
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/invalid-token",
+                "title": "Invalid Token",
+                "status": 401,
+                "detail": str(e),
+                "instance": request.path
+            }), 401
+        
+        except Exception as e:
+            logger.error(f"Authentication error: {str(e)}")
+            return jsonify({
+                "type": "https://api.sos-cidadao.org/problems/authentication-error",
+                "title": "Authentication Error",
+                "status": 500,
+                "detail": "Internal authentication error",
+                "instance": request.path
+            }), 500
+    
     return decorated_function
 
 
 @notifications_bp.post('/incoming')
 @require_jwt
-def receive_notification_webhook():
+def receive_notification_webhook(user_context):
     """
     Receive notification via webhook.
     
     This endpoint accepts incoming notifications from external systems,
     validates the payload, and stores them with status='received' for moderation.
     """
-    from flask import g
-    user_context = g.user_context
+    print("DEBUG: Webhook function called successfully!")
+    print(f"DEBUG: User context: {user_context.user_id}")
     
-    with tracer.start_as_current_span(
-        "notification.webhook.receive",
-        attributes={
-            "user.id": user_context.user_id,
-            "organization.id": user_context.org_id,
-            "operation": "receive_webhook"
-        }
-    ) as span:
+    # Create dummy span object for when tracing is disabled
+    class DummySpan:
+        def set_status(self, *args): pass
+        def set_attribute(self, *args): pass
+        def set_attributes(self, *args): pass
+        def record_exception(self, *args): pass
+    
+    span = DummySpan()
+    
+    # Temporarily disable tracing for debugging
+    if True:
         try:
             # Get request data
             request_data = request.get_json()
@@ -93,7 +164,9 @@ def receive_notification_webhook():
             
             # Validate request using Pydantic
             try:
+                print(f"DEBUG: Validating webhook request with data: {request_data}")
                 webhook_request = NotificationWebhookRequest(**request_data)
+                print(f"DEBUG: Webhook request validated successfully")
                 span.set_attributes({
                     "notification.title": webhook_request.title[:50],  # Truncated for logs
                     "notification.severity": webhook_request.severity,
@@ -120,12 +193,16 @@ def receive_notification_webhook():
             span.set_attribute("notification.origin", origin)
             
             # Process notification using domain logic
-            with tracer.start_as_current_span("domain.notification.receive") as domain_span:
+            domain_span = DummySpan()
+            if True:
+                print(f"DEBUG: Processing notification with origin: {origin}")
+                print(f"DEBUG: User context: {user_context.user_id}, {user_context.org_id}")
                 result = notification_domain.receive_notification(
                     payload=request_data,
                     origin=origin,
                     user_context=user_context
                 )
+                print(f"DEBUG: Domain result success: {result.success}")
                 
                 domain_span.set_attributes({
                     "domain.operation": "receive_notification",
@@ -159,9 +236,47 @@ def receive_notification_webhook():
                     )), 500
             
             # Store notification in database
-            with tracer.start_as_current_span("db.notification.create") as db_span:
+            db_span = DummySpan()
+            if True:
                 notification_dict = result.notification.model_dump()
-                notification_id = current_app.mongodb_service.create("notifications", notification_dict)
+                
+                # Convert snake_case to camelCase for MongoDB
+                from bson import ObjectId
+                
+                mongo_dict = {
+                    "_id": notification_dict.get("id"),
+                    "organizationId": ObjectId(notification_dict.get("organization_id")),
+                    "title": notification_dict.get("title"),
+                    "body": notification_dict.get("body"),
+                    "severity": notification_dict.get("severity"),
+                    "origin": notification_dict.get("origin"),
+                    "originalPayload": notification_dict.get("original_payload"),
+                    "baseTarget": ObjectId(notification_dict.get("base_target_id")) if notification_dict.get("base_target_id") else None,
+                    "targets": [ObjectId(t) for t in notification_dict.get("target_ids", [])],
+                    "categories": [ObjectId(c) for c in notification_dict.get("category_ids", [])],
+                    "status": notification_dict.get("status"),
+                    "denialReason": notification_dict.get("denial_reason"),
+                    "approvedAt": notification_dict.get("approved_at"),
+                    "approvedBy": notification_dict.get("approved_by"),
+                    "deniedAt": notification_dict.get("denied_at"),
+                    "deniedBy": notification_dict.get("denied_by"),
+                    "dispatchedAt": notification_dict.get("dispatched_at"),
+                    "correlationId": notification_dict.get("correlation_id"),
+                    "createdAt": notification_dict.get("created_at"),
+                    "updatedAt": notification_dict.get("updated_at"),
+                    "deletedAt": notification_dict.get("deleted_at"),
+                    "createdBy": notification_dict.get("created_by"),
+                    "updatedBy": notification_dict.get("updated_by"),
+                    "schemaVersion": notification_dict.get("schema_version", 2)
+                }
+                
+                # Remove None values and _id if it's None
+                mongo_dict = {k: v for k, v in mongo_dict.items() if v is not None}
+                if "_id" in mongo_dict and mongo_dict["_id"] is None:
+                    del mongo_dict["_id"]
+                
+                print(f"DEBUG: MongoDB dict keys: {list(mongo_dict.keys())}")
+                notification_id = current_app.mongodb_service.create("notifications", mongo_dict, user_context.user_id)
                 
                 db_span.set_attributes({
                     "db.collection": "notifications",
@@ -175,8 +290,9 @@ def receive_notification_webhook():
             span.set_attribute("notification.id", notification_id)
             
             # Create audit log entry for notification creation
-            with tracer.start_as_current_span("audit.log_creation") as audit_span:
-                from ..middleware.audit import log_notification_workflow_event
+            audit_span = DummySpan()
+            if True:
+                from middleware.audit import log_notification_workflow_event
                 
                 after_state = {
                     "id": notification_id,
@@ -246,17 +362,151 @@ def receive_notification_webhook():
             )), 500
 
 
+@notifications_bp.get('/debug2')
+def debug_notification_entity():
+    """Debug endpoint to test notification entity creation."""
+    try:
+        # Test data from the debug output
+        test_data = {
+            "id": "68e80820097463da914a341e",
+            "organization_id": "68e80820097463da914a3413",
+            "title": "Test Notification - Denied",
+            "body": "This is a test notification that was denied for testing purposes.",
+            "severity": 1,
+            "origin": "test-system",
+            "original_payload": {
+                "purpose": "E2E testing",
+                "test_id": "TEST-001"
+            },
+            "base_target_id": "68e80820097463da914a3419",
+            "target_ids": ["68e80820097463da914a3419"],
+            "category_ids": ["68e80820097463da914a341b"],
+            "status": "denied",
+            "denial_reason": "Test notification - not for actual dispatch",
+            "approved_at": None,
+            "approved_by": None,
+            "denied_at": "2025-10-09T19:22:25",
+            "denied_by": "system",
+            "dispatched_at": None,
+            "correlation_id": None,
+            "created_at": "2025-10-09T18:23:16",
+            "updated_at": "2025-10-09T18:38:16",
+            "deleted_at": None,
+            "created_by": "system",
+            "updated_by": "system",
+            "schema_version": 1
+        }
+        
+        from models.entities import Notification
+        notification = Notification(**test_data)
+        
+        return jsonify({
+            "message": "Notification entity created successfully",
+            "notification_id": notification.id,
+            "title": notification.title
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+@notifications_bp.get('/debug')
+def debug_notifications():
+    """Debug endpoint to check notification data."""
+    from flask import g
+    from middleware.auth import require_auth
+    
+    # Get auth middleware from current app
+    auth_middleware = current_app.auth_middleware
+    
+    # Extract token from request
+    token = auth_middleware.extract_token_from_request()
+    if not token:
+        return jsonify({"error": "No token"}), 401
+    
+    try:
+        # Validate token
+        token_payload = auth_middleware.auth_service.validate_token(token, "access")
+        
+        # Build user context
+        request_info = auth_middleware.get_request_info()
+        user_context = auth_middleware.build_user_context(token_payload, request_info)
+        
+        # Test pagination
+        pagination_result = current_app.mongodb_service.paginate_by_org(
+            "notifications",
+            user_context.org_id,
+            1,
+            20
+        )
+        
+        return jsonify({
+            "message": "Debug successful",
+            "user_id": user_context.user_id,
+            "org_id": user_context.org_id,
+            "total": pagination_result.total,
+            "items_count": len(pagination_result.items),
+            "first_item": pagination_result.items[0] if pagination_result.items else None
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@notifications_bp.post('/test-webhook')
+@require_jwt
+def test_webhook(user_context):
+    """Test webhook endpoint to isolate authentication issues."""
+    try:
+        # Get request data
+        request_data = request.get_json()
+        
+        return jsonify({
+            "message": "Webhook test successful",
+            "user_id": user_context.user_id,
+            "org_id": user_context.org_id,
+            "permissions": user_context.permissions,
+            "request_data_keys": list(request_data.keys()) if request_data else []
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+@notifications_bp.get('/test')
+def test_auth():
+    """Test authentication without decorators."""
+    from flask import g
+    from middleware.auth import require_auth
+    
+    # Get auth middleware from current app
+    auth_middleware = current_app.auth_middleware
+    
+    # Extract token from request
+    token = auth_middleware.extract_token_from_request()
+    if not token:
+        return jsonify({"error": "No token"}), 401
+    
+    try:
+        # Validate token
+        token_payload = auth_middleware.auth_service.validate_token(token, "access")
+        
+        # Build user context
+        request_info = auth_middleware.get_request_info()
+        user_context = auth_middleware.build_user_context(token_payload, request_info)
+        
+        return jsonify({
+            "message": "Authentication successful",
+            "user_id": user_context.user_id,
+            "org_id": user_context.org_id,
+            "permissions": user_context.permissions
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @notifications_bp.get('')
 @require_jwt
-def list_notifications():
+def list_notifications(user_context):
     """
     List notifications with filtering and pagination.
     
     Returns a HAL collection of notifications with pagination links
     and filtering capabilities.
     """
-    from flask import g
-    user_context = g.user_context
     
     with tracer.start_as_current_span(
         "notification.list",
@@ -314,8 +564,8 @@ def list_notifications():
             
             # Query notifications from database
             with tracer.start_as_current_span("db.notification.list") as db_span:
-                # Build MongoDB query
-                query = {"organizationId": user_context.org_id, "deletedAt": None}
+                # Build MongoDB query (organization filtering is handled by paginate_by_org)
+                query = {}
                 
                 if filters.status:
                     query["status"] = filters.status
@@ -366,26 +616,27 @@ def list_notifications():
             
             # Convert to notification entities
             notifications = []
+            print(f"DEBUG: Converting {len(pagination_result.items)} items to notification entities")
             for item in pagination_result.items:
                 try:
                     # Convert MongoDB document to Notification entity
                     notification_data = {
-                        "id": str(item["_id"]),
+                        "id": item["id"],  # MongoDB service already converted _id to id
                         "organization_id": item["organizationId"],
                         "title": item["title"],
                         "body": item["body"],
                         "severity": item["severity"],
                         "origin": item["origin"],
                         "original_payload": item["originalPayload"],
-                        "base_target_id": item.get("baseTargetId"),
-                        "target_ids": item.get("targetIds", []),
-                        "category_ids": item.get("categoryIds", []),
+                        "base_target_id": item.get("baseTarget"),
+                        "target_ids": item.get("targets", []),
+                        "category_ids": item.get("categories", []),
                         "status": item["status"],
                         "denial_reason": item.get("denialReason"),
                         "approved_at": item.get("approvedAt"),
-                        "approved_by": item.get("approvedBy"),
+                        "approved_by": item.get("approvedBy") or ("system" if item["status"] == "approved" else None),
                         "denied_at": item.get("deniedAt"),
-                        "denied_by": item.get("deniedBy"),
+                        "denied_by": item.get("deniedBy") or ("system" if item["status"] == "denied" else None),
                         "dispatched_at": item.get("dispatchedAt"),
                         "correlation_id": item.get("correlationId"),
                         "created_at": item["createdAt"],
@@ -396,19 +647,15 @@ def list_notifications():
                         "schema_version": item.get("schemaVersion", 1)
                     }
                     
-                    from ..models.entities import Notification
+                    from models.entities import Notification
+                    print(f"DEBUG: Creating notification with data keys: {list(notification_data.keys())}")
                     notification = Notification(**notification_data)
                     notifications.append(notification)
+                    print(f"DEBUG: Successfully created notification {notification.id}")
                     
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to parse notification {item.get('_id')}: {str(e)}",
-                        extra={
-                            "notification_id": str(item.get("_id")),
-                            "org_id": user_context.org_id,
-                            "parse_error": str(e)
-                        }
-                    )
+                    print(f"DEBUG: Failed to parse notification {item.get('id')}: {str(e)}")
+                    print(f"DEBUG: Item data: {item}")
                     continue
             
             # Build HAL collection response
@@ -460,15 +707,13 @@ def list_notifications():
 
 @notifications_bp.get('/<notification_id>')
 @require_jwt
-def get_notification_detail(notification_id: str):
+def get_notification_detail(user_context, notification_id: str):
     """
     Get notification detail with HAL affordance links.
     
     Returns detailed notification information with conditional action links
     based on current status and user permissions.
     """
-    from flask import g
-    user_context = g.user_context
     
     with tracer.start_as_current_span(
         "notification.detail",
@@ -533,7 +778,7 @@ def get_notification_detail(notification_id: str):
                     "schema_version": notification_doc.get("schemaVersion", 1)
                 }
                 
-                from ..models.entities import Notification
+                
                 notification = Notification(**notification_data)
                 
             except Exception as e:
@@ -600,15 +845,13 @@ def get_notification_detail(notification_id: str):
 
 @notifications_bp.post('/<notification_id>/approve')
 @require_jwt
-def approve_notification(notification_id: str):
+def approve_notification(user_context, notification_id: str):
     """
     Approve notification for dispatch.
     
     This endpoint approves a notification, validates target/category selections,
     and triggers AMQP publishing for dispatch to external systems.
     """
-    from flask import g
-    user_context = g.user_context
     
     with tracer.start_as_current_span(
         "notification.approve",
@@ -717,7 +960,7 @@ def approve_notification(notification_id: str):
                     "schema_version": notification_doc.get("schemaVersion", 1)
                 }
                 
-                from ..models.entities import Notification
+                
                 notification = Notification(**notification_data)
                 
             except Exception as e:
@@ -918,7 +1161,7 @@ def approve_notification(notification_id: str):
             
             # Create audit log entry
             with tracer.start_as_current_span("audit.log_approval") as audit_span:
-                from ..middleware.audit import log_notification_workflow_event
+                
                 
                 # Prepare before and after states for audit
                 before_state = {
@@ -1010,18 +1253,15 @@ def approve_notification(notification_id: str):
                 request.url
             )), 500
 
-@not
-ifications_bp.post('/<notification_id>/deny')
+@notifications_bp.post('/<notification_id>/deny')
 @require_jwt
-def deny_notification(notification_id: str):
+def deny_notification(user_context, notification_id: str):
     """
     Deny notification with reason.
     
     This endpoint denies a notification, stores the denial reason,
     and creates an audit trail for the decision.
     """
-    from flask import g
-    user_context = g.user_context
     
     with tracer.start_as_current_span(
         "notification.deny",
@@ -1127,7 +1367,7 @@ def deny_notification(notification_id: str):
                     "schema_version": notification_doc.get("schemaVersion", 1)
                 }
                 
-                from ..models.entities import Notification
+                
                 notification = Notification(**notification_data)
                 
             except Exception as e:
@@ -1225,7 +1465,7 @@ def deny_notification(notification_id: str):
             
             # Create audit log entry
             with tracer.start_as_current_span("audit.log_denial") as audit_span:
-                from ..middleware.audit import log_notification_workflow_event
+                
                 
                 # Prepare before and after states for audit
                 before_state = {
@@ -1378,8 +1618,8 @@ def _publish_to_endpoints(
         List of publish results
     """
     from flask import current_app
-    from ..services.amqp import create_amqp_service, PublishResult
-    from ..models.entities import Endpoint
+    
+    
     import time
     
     results = []
@@ -1487,7 +1727,7 @@ def _publish_to_endpoint_with_retry(
         PublishResult: Final result after retries
     """
     import time
-    from ..services.amqp import PublishResult
+    
     
     last_result = None
     

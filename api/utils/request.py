@@ -8,6 +8,7 @@ Request utilities for extracting and processing request data.
 from flask import request
 from typing import Dict, Any, Optional, List, Union
 from urllib.parse import unquote
+from datetime import datetime
 import json
 import logging
 
@@ -413,3 +414,19 @@ class HeaderUtils:
         return {
             'Cache-Control': ', '.join(cache_parts)
         }
+
+
+def get_request_context() -> Dict[str, Any]:
+    """
+    Get request context for audit logging.
+    
+    Returns:
+        Dictionary containing request context information
+    """
+    return {
+        "ip_address": request.remote_addr or "unknown",
+        "user_agent": request.headers.get("User-Agent", "unknown"),
+        "method": request.method,
+        "path": request.path,
+        "timestamp": datetime.utcnow().isoformat()
+    }

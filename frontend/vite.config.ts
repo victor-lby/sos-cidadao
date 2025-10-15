@@ -20,10 +20,18 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: '0.0.0.0',
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'frontend.sos-cidadao.orb.local',
+      '.orb.local'
+    ],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true
+        target: 'https://api.sos-cidadao.orb.local',
+        changeOrigin: true,
+        secure: false
       }
     }
   },
