@@ -34,7 +34,7 @@ opentelemetry-instrumentation-pymongo==0.42b0
 
 # Utilities
 python-dateutil==2.8.2
-python-dotenv==1.0.0
+python-dotenv==1.1.1
 
 # WSGI server for Vercel
 gunicorn==21.2.0
