@@ -3,7 +3,7 @@
 
 # Core Flask framework
 Flask==3.0.0
-flask-openapi3==3.1.1
+flask-openapi3==4.3.0
 
 # Authentication and security
 PyJWT==2.8.0
