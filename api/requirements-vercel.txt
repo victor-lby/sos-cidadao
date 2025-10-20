@@ -30,7 +30,7 @@ opentelemetry-sdk==1.21.0
 opentelemetry-exporter-otlp==1.21.0
 opentelemetry-instrumentation-flask==0.42b0
 opentelemetry-instrumentation-requests==0.42b0
-opentelemetry-instrumentation-pymongo==0.42b0
+opentelemetry-instrumentation-pymongo==0.59b0
 
 # Utilities
 python-dateutil==2.8.2
