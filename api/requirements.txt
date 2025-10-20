@@ -50,7 +50,7 @@ responses==0.24.1
 testcontainers==3.7.1
 
 # Code quality
-black==23.11.0
+black==25.9.0
 flake8==6.1.0
 mypy==1.7.1
 isort==5.12.0
